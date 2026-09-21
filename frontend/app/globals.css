@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-ink: #14171F;
+  --color-ink-soft: #1D212C;
+  --color-teal: #00D9B5;
+  --color-teal-dim: #0B4A41;
+  --color-amber: #FFB84D;
+  --color-paper: #F5F6F5;
+  --color-slate: #8A93A3;
+  --color-slate-dark: #4B5563;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.menu-topo {
+  @apply flex items-center justify-between p-6;
+  background-color: var(--color-ink);
+}
+
+.nome {
+  @apply flex items-center gap-2 text-2xl font-bold;
+  color: var(--color-teal);
+}
+
+.icone-logo {
+  @apply w-7 h-7 shrink-0;
+}
+
+.menu {
+  @apply flex items-center gap-6;
+}
+
+.item-menu {
+  @apply font-medium transition-colors;
+  color:antiquewhite;
+}
+
+.item-menu:hover {
+  color: var(--color-teal);
+}
+
+.botao-login {
+  @apply px-4 py-2 rounded-xl font-bold transition-all;
+  background-color: var(--color-teal);
+  color: var(--color-ink);
+}
+
+.botao-login:hover {
+  filter: brightness(0.95);
+  background-color: var(--color-ink);
+  color: var(--color-teal);
 }
