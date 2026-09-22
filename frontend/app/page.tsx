@@ -42,21 +42,35 @@ export default function Homepage() {
         <nav className="menu">
           <a href="#" className="item-menu">Como Funciona?</a>
           <a href="#" className="item-menu">Perguntas</a>
-          <a href="#" className="item-menu">Cadastra-se</a>
+          <a href="#" className="item-menu">Cadastre-se</a>
           <a href="#" className="botao-login">Login</a>
         </nav>
       </header>
 
       <main>
-
         <section className="apresentacao">
-          <div className="texto-apresentacao">
+          <div className="coluna-texto">
             <h1 className="titulo-principal">
-              O aluguel do seu jeito
+              O aluguel do seu jeito,
+              sem passar a chave
+              pra <em>imobiliária</em>.
             </h1>
+
+            <p className="texto-apoio">
+              Chaveo gera o contrato, cobra o Pix, lembra o inquilino, tudo isso na palma da sua mão. 
+              Sem comissão sobre o aluguel — só uma assinatura fixa, todo mês, do mesmo jeito.
+            </p>
+
+            <div className="botoes-acoes">
+              <a href="#teste" className="btn-criar-conta">
+                Criar minha conta
+              </a>
+              <a href="#como-funciona" className="btn-ver-funciona">
+                Ver como funciona
+              </a>
+            </div>
           </div>
         </section>
-       
       </main>
     </>
   );

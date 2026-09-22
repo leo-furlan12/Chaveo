@@ -54,3 +54,56 @@ body {
   background-color: var(--color-ink);
   color: var(--color-teal);
 }
+
+
+
+
+.apresentacao {
+  @apply min-h-[calc(100vh-80px)] flex items-center px-8 md:px-16;
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+
+.apresentacao-container {
+  @apply w-full;
+}
+
+.coluna-texto {
+  @apply max-w-4xl flex flex-col items-start;
+}
+
+.titulo-principal {
+  @apply text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6;
+  color: antiquewhite;
+}
+
+.titulo-principal em{
+  font-style: normal;
+  color:var(--color-teal);
+}
+
+.botoes-acoes {
+  @apply flex flex-wrap gap-4 mt-10;
+}
+
+.btn-criar-conta{
+  @apply px-6 py-3.5 rounded-xl font-bold border border-white/20 transition-colors;
+  background-color: var(--color-teal);
+  color:var(--color-ink);
+}
+
+.btn-criar-conta:hover {
+  filter: brightness(0.95);
+  background-color: var(--color-ink);
+  color: var(--color-teal);
+}
+
+.btn-ver-funciona {
+  @apply px-6 py-3.5 rounded-xl font-bold border border-white/20 transition-colors;
+  color: var(--color-paper);
+}
+
+.btn-ver-funciona:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
