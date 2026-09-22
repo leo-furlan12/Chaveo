@@ -17,8 +17,9 @@ body {
 }
 
 .menu-topo {
-  @apply flex items-center justify-between p-6;
-  background-color: var(--color-ink);
+  @apply fixed w-full left-0 top-0 z-50 flex items-center justify-between p-6 backdrop-blur-md transition-all;
+  background-color: rgba(20, 23, 31, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .nome {
@@ -59,7 +60,7 @@ body {
 
 
 .apresentacao {
-  @apply min-h-[calc(100vh-80px)] flex items-center px-8 md:px-16;
+  @apply min-h-screen flex items-center px-8 md:px-16 pt-28;
   background-color: var(--color-ink);
   color: var(--color-paper);
 }
