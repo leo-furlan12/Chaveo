@@ -70,6 +70,28 @@ export default function Homepage() {
               </a>
             </div>
           </div>
+
+          <div className="coluna-ilustracao">
+            <div className="brilho-fundo"></div>
+            <div className="container-recibo">
+              <div className="recibo-velho">
+                <span className="etiqueta-recibo"> IMOBILIÀRIA</span>
+                <span className="valor-riscado"> R$375 /<small>mês</small></span>
+                <span className="subtexto-recibo"> 10% do aluguel</span>
+                <span className="subtexto-recibo"> taxa de administração</span>
+                <span className="subtexto-recibo"> descontado direto do aluguel</span>
+                <span className="subtexto-recibo"> Reparos superfaturados com prestadores deles</span>
+              </div>
+              <div className="recibo-novo">
+                <span className="etiqueta-recibo">CHAVEO</span>
+                <span className="valor-destaque"> fixo /<small>mês</small></span>
+                <span className="subtexto-recibo"> 100% do aluguel é seu</span>
+                <span className="subtexto-recibo"> Cobrança e lembretes automáticos</span>
+                <span className="subtexto-recibo"> Contato direto com o seu inquilino</span>
+                <span className="subtexto-recibo"> Tudo reolvido pelo celular</span>
+              </div>
+            </div>
+          </div>
         </section>
       </main>
     </>
