@@ -93,6 +93,56 @@ export default function Homepage() {
             </div>
           </div>
         </section>
+
+        <section className="secao-azul">
+          <div className="wrap">
+            <div className="cartao-branco">
+              <div className="lado-esquerdo">
+
+                <div className="selo-verde">
+                  <span className="text-[#00D9B5]"></span> dentro da lei
+                </div>
+                <h2 className="titulo-cartao"> Isso é regularizado??</h2>
+                <p className="texto-cartao"> Sim. A Lei do Inquilinato (8.245/91) nunca exigiu um corretor no meio — proprietário e inquilino sempre puderam fechar o contrato direto.</p>
+                <p className="texto-cartao"> Chaveo automatiza o que já era administrativo: gerar contrato, cobrar e calcular imposto. Quem escolhe o inquilino é você, fora do app.</p>
+              </div>
+
+              <div className="lado-direito">
+                <div className="item-lista">
+                  <div className="numero">01</div>
+                  <div className="conteudo-item">
+                    <h4 className="titulo-item">Sem Captação, sem intermediação</h4>
+                    <p className="desc-item"> O app não anuncia o imóvel nem indica inquilino — por isso fica fora do escopo da corretagem regulada pela Lei 6.530/78.</p>
+                  </div>
+                </div>
+
+                <div className="item-lista">
+                  <div className="numero">02</div>
+                  <div className="conteudo-item">
+                    <h4 className="titulo-item">Assinatura eletrônica com validade legal</h4>
+                    <p className="desc-item">
+                      Reconhecida pelas Leis 14.063/2020 e 14.620/2023 — o mesmo contrato que valeria em papel, só que mais rápido.
+                    </p>
+                  </div>
+                </div>
+
+
+                <div className="item-lista border-none">
+                  <div className="numero">03</div>
+                  <div className="conteudo-item">
+                    <h4 className="titulo-item">Pix processado por instituição licenciada</h4>
+                    <p className="desc-item">
+                       A cobrança recorrente passa por um parceiro de pagamento autorizado pelo Banco Central — o Chaveo nunca guarda seu dinheiro.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </section>
+
       </main>
     </>
   );

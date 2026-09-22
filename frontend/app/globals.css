@@ -130,14 +130,14 @@ body {
 }
 
 .recibo-velho{
-  @apply flex flex-col p-8 shadow-2xl rotate-[-6.4deg];
+  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[-6.4deg];
   background-color: #edeeea;
   color: var(--color-ink);
   clip-path: polygon(0% 0%, 100% 0%, 100% 90%, 87.5% 100%, 75% 90%, 62.5% 100%, 50% 90%, 37.5% 100%, 25% 90%, 12.5% 100%, 0% 90%);
 }
 
 .recibo-novo{
-  @apply flex flex-col p-8 shadow-2xl rotate-[1.2deg];
+  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[1.2deg];
   background-color: var(--color-teal);
   color: var(--color-ink);
   clip-path: polygon(0% 10%, 12.5% 0%, 25% 10%, 37.5% 0%, 50% 10%, 62.5% 0%, 75% 10%, 87.5% 0%, 100% 10%, 100% 100%, 0% 100%);
@@ -162,4 +162,63 @@ body {
 }
 .subtexto-recibo{
   @apply text-[12px] opacity-60 mt-2 list-item list-disc list-inside;
+}
+
+
+
+/*fim recibo do lado direito*/
+
+
+
+
+/*começo seção legal*/
+
+.secao-azul {
+  @apply py-24 bg-[#14171F]; 
+}
+
+
+.cartao-branco {
+  @apply w-full max-w-[1280px] mx-auto bg-white rounded-[32px] p-8 md:p-12 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 shadow-2xl;
+}
+
+.lado-esquerdo {
+  @apply flex flex-col items-start;
+}
+
+.selo-verde {
+  @apply inline-flex items-center  font-bold text-[12px] text-[#0B7A5E] bg-[#E3F5EF] px-3 py-1.5 rounded-full mb-6;
+}
+
+.titulo-cartao {
+  @apply font-bold text-3xl md:text-4xl text-[#14171F] mb-6 leading-tight;
+}
+
+.texto-cartao {
+  @apply text-[16px] text-[#4B5563] mb-4 max-w-[420px];
+}
+
+
+.lado-direito {
+  @apply flex flex-col;
+}
+
+.item-lista {
+  @apply flex gap-5 py-6 border-b border-gray-200 first:pt-0 last:pb-0 last:border-0;
+}
+
+.numero {
+  @apply font-mono text-[13px] text-[#8A93A3] pt-1 flex-shrink-0;
+}
+
+.conteudo-item {
+  @apply flex flex-col gap-1.5;
+}
+
+.titulo-item {
+  @apply font-semibold text-[16.5px] text-[#14171F];
+}
+
+.desc-item {
+  @apply text-[14.5px] text-[#4B5563] leading-relaxed;
 }
