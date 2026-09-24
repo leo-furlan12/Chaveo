@@ -36,8 +36,8 @@ body {
 }
 
 .item-menu {
-  @apply font-medium transition-colors;
-  color:antiquewhite;
+  @apply font-black transition-colors;
+  color:white;
 }
 
 .item-menu:hover {
@@ -76,12 +76,16 @@ body {
 
 .titulo-principal {
   @apply text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6;
-  color: antiquewhite;
+  color:white;
 }
 
 .titulo-principal em{
   font-style: normal;
   color:var(--color-teal);
+}
+
+.texto-apoio{
+  @apply text-lg font-medium;
 }
 
 .botoes-acoes {
@@ -121,8 +125,8 @@ body {
 }
 
 .brilho-fundo{
-  @apply absolute w-[420px] h-[420px] rounded-full pointer-events-none;
-  background: radial-gradient(circle, rgba(0,217,181,0.22) 0%, rgba(0,217,181,0) 70%);
+  @apply absolute w-[720px] h-[720px] rounded-full pointer-events-none;
+  background: radial-gradient(circle, rgba(0,217,181,0.22) 0%, rgba(0,217,181,0) 60%);
 }
 
 .container-recibo{
@@ -171,6 +175,90 @@ body {
 
 
 
+/*seção de como funciona*/
+
+.wrap {
+  @apply w-full max-w-[2100px] mx-auto px-8 md:px-12;
+}
+
+.secao-como-funciona{
+@apply py-24 bg-[#14171F] text-[#F5F6F5]; 
+}
+
+.cabecalho-etapas{
+  @apply max-w-[620px] mb-16;
+}
+
+.etiqueta-cinza{
+  @apply text-2xl text-[#8a93a3] font-semibold mb-2.5;
+}
+
+.titulo-etapas{
+  @apply text-white font-bold text-3xl md:text-4xl mb-4 leading-tight;
+}
+
+.subtitulo-etapas{
+  @apply text-xl text-[#8a93a3];
+}
+
+.fluxo-etapas{
+  @apply flex flex-col md:flex-row items-start gap-4 md:gap-0;
+}
+
+.etapa-bloco{
+  @apply flex-1 flex flex-col min-w-0;
+}
+
+.etapa-icone{
+  @apply w-[46px] h-[46px] rounded-xl flex items-center justify-center text-[#009b5] mb-6;
+}
+
+.etapa-icone svg{
+  @apply w-[22px] h-[22px];
+}
+
+.etapa-titulo {
+  @apply text-white font-semibold text-xl mb-2.5;
+}
+
+.etapa-texto{
+  @apply text-xl text-[#8a93a3] pr-4;
+}
+
+.seta-fluxo{
+  @apply flex-shrink-0 w-5 h-5 text-[#2A2F3D] mt-3 md:mt-3 mx-2 md:mx-4 transform rotate-90 md:rotate-0 self-center md:self-start;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*começo seção legal*/
 
 .secao-azul {
@@ -187,7 +275,7 @@ body {
 }
 
 .selo-verde {
-  @apply inline-flex items-center  font-bold text-[12px] text-[#0B7A5E] bg-[#E3F5EF] px-3 py-1.5 rounded-full mb-6;
+  @apply inline-flex items-center font-bold text-[12px] text-[#0B7A5E] bg-[#E3F5EF] px-3 py-1.5 rounded-full mb-6;
 }
 
 .titulo-cartao {
@@ -221,4 +309,12 @@ body {
 
 .desc-item {
   @apply text-[14.5px] text-[#4B5563] leading-relaxed;
+
+  
 }
+
+
+
+/*fim seção legal*/
+
+

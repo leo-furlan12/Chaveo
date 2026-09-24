@@ -94,6 +94,74 @@ export default function Homepage() {
           </div>
         </section>
 
+
+        <section className="secao-como-funciona" id="como-funciona">
+          <div className="wrap">
+
+            <div className="cabecalho-etapas">
+              <div className="etiqueta-cinza">Do zero ao inquilo em casa</div>
+              <h2 className="titulo-etapas">Quatro etapas, uma de cada vez</h2>
+              <p className="subtitulo-etapas">
+                É a mesma sequência que uma imobiliária segue — só que quem aperta o botão é você.
+              </p>
+            </div>
+
+            <div className="fluxo-etapas">
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/contrato.svg" alt="Ícone de trabalho" className="icones"/>
+                </div>
+                <h3 className="etapa-titulo"> Contratos</h3>
+                <p className="etapa-texto">Wizard monta o contrato residencial seguindo a Lei do Inquilinato, com valor, prazo, índice e garantia. Assinatura eletrônica dos dois lados.</p>
+              </div>
+
+              <img src="/icones-homepage/seta.svg" alt="Seta" className="seta-fluxo"/>
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/cobrança.svg" alt="Ícone de Cobrança" className="icones"/>
+                </div>
+                <h3 className="etapa-titulo">Cobranças</h3>
+                <p className="etapa-texto">
+                  Pix recorrente, lembrete automático antes do vencimento, multa e juros calculados sozinhos, reajuste anual por IGP-M ou IPCA.
+                </p>
+              </div>
+
+              <img src="/icones-homepage/seta.svg" alt="Seta" className="seta-fluxo"/>
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/vistoria.svg" alt="Ícone de Vistoria" className="icones" />
+                </div>
+                <h3 className="etapa-titulo"> Vistoria</h3>
+                <p className="etapa-texto">
+                  Checklist fotográfico na entrada e na saída, pra não sobrar dúvida sobre quem paga o quê na devolução das chaves.
+                </p>
+              </div>
+
+              <img src="/icones-homepage/seta.svg" alt="Seta" className="seta-fluxo" />
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/casa.svg" alt="Casa"  className="icones"/>
+                </div>
+                <div className="etapa-titulo">Sucesso!</div>
+                <p className="etapa-texto">
+                  Sucesso, Inquilo já pode morar na casa!!
+                </p>
+              </div>
+
+
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+
         <section className="secao-azul">
           <div className="wrap">
             <div className="cartao-branco">
