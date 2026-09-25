@@ -125,8 +125,8 @@ body {
 }
 
 .brilho-fundo{
-  @apply absolute w-[720px] h-[720px] rounded-full pointer-events-none;
-  background: radial-gradient(circle, rgba(0,217,181,0.22) 0%, rgba(0,217,181,0) 60%);
+  @apply absolute w-[2110px] h-[2110px] rounded-full pointer-events-none;
+  background: radial-gradient(circle, rgba(0,217,181,0.22) -60%, rgba(0,217,181,0) 60%);
 }
 
 .container-recibo{
@@ -134,17 +134,28 @@ body {
 }
 
 .recibo-velho{
-  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[-6.4deg];
+  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[-6.4deg] transition-all duration-400;
   background-color: #edeeea;
   color: var(--color-ink);
   clip-path: polygon(0% 0%, 100% 0%, 100% 90%, 87.5% 100%, 75% 90%, 62.5% 100%, 50% 90%, 37.5% 100%, 25% 90%, 12.5% 100%, 0% 90%);
+  
+}
+
+.recibo-velho:hover{
+ @apply -translate-y-5 border-2 border-[black];
+  
 }
 
 .recibo-novo{
-  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[1.2deg];
+  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[1.2deg] transition-all duration-400;
   background-color: var(--color-teal);
   color: var(--color-ink);
   clip-path: polygon(0% 10%, 12.5% 0%, 25% 10%, 37.5% 0%, 50% 10%, 62.5% 0%, 75% 10%, 87.5% 0%, 100% 10%, 100% 100%, 0% 100%);
+}
+
+.recibo-novo:hover{
+  @apply translate-y-5 border-2;
+
 }
 
 
@@ -182,7 +193,7 @@ body {
 }
 
 .secao-como-funciona{
-@apply py-24 bg-[#14171F] text-[#F5F6F5]; 
+@apply pt-12 pb-32 bg-[#14171F] text-[#F5F6F5]; 
 }
 
 .cabecalho-etapas{
@@ -210,7 +221,10 @@ body {
 }
 
 .etapa-icone{
-  @apply w-[46px] h-[46px] rounded-xl flex items-center justify-center text-[#009b5] mb-6;
+  @apply w-[46px] h-[46px] rounded-xl flex items-center justify-center text-[#009b5] mb-6 transition-all duration-400 ;
+}
+.etapa-icone:hover{
+@apply -translate-y-4;
 }
 
 .etapa-icone svg{
