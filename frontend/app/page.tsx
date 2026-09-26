@@ -151,13 +151,8 @@ export default function Homepage() {
                   Sucesso, Inquilo já pode morar na casa!!
                 </p>
               </div>
-
-
-
             </div>
-
           </div>
-
         </section>
 
 
@@ -208,6 +203,66 @@ export default function Homepage() {
               </div>
             </div>
           </div>
+
+        </section>
+
+
+        <section className="secao-ecossistema">
+          <div className="wrap">
+
+            <div className="cabecalho-ecossistema">
+              <h2 className="titulo-ecossistema">Bom para quem aluga, mora e <em>conserta.</em></h2>
+              <p className="subtitulo-ecossistema"> Um ecossistema onde todos ganham e a burocracia desaparece</p>
+            </div>
+          
+
+
+            <div className="grid-persona"> 
+              <div className="cartao-persona">
+                <div className="icone-persona">
+                  <img src="/icones-homepage/proprietário.svg" alt="Icone Proprietário" className="icone" />
+                </div>
+                <h3 className="titulo-persona">Proprietário</h3>
+                <ul className="lista-vantagens">
+                  <li>Fica com 100% do valor do aluguel.</li>
+                  <li>Não recebe ligações de madrugada para trocar resistência de chuveiro.</li>
+                  <li>Controle total dos recebimentos pelo celular.</li>
+                </ul>
+              </div>
+            
+
+
+            
+              <div className="cartao-persona">
+                <div className="icone-persona">
+                  <img src="/icones-homepage/inquilino.svg" alt="Icone Inquilino" className="icone" />
+                </div>
+                <h3 className="titulo-persona"> Inquilino</h3>
+                <ul className="lista-vantagens">
+                  <li>Abre chamados de manutenção direto no app.</li>
+                  <li>Encontra prestadores locais avaliados num clique.</li>
+                  <li>Histórico de pagamentos transparente via Pix.</li>
+                </ul>
+              </div>
+            
+
+
+
+            
+              <div className="cartao-persona">
+                <div className="icone-persona">
+                  <img src="/icones-homepage/prestador.svg" alt="Icone Prestador" className="icones" />
+                </div>
+                <h3 className="titulo-persona">Prestador</h3>
+                <ul className="lista-vantagens">
+                  <li>Ganhe visibilidade no bairro sem gastar com anúncios.</li>
+                  <li>Contrato e negociação direta com o inquilino.</li>
+                  <li>Zero taxas ou comissões cobradas pelo app.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
 
         </section>
 

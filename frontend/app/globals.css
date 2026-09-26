@@ -14,6 +14,7 @@
 body {
   background-color: var(--color-paper);
   color: var(--color-ink);
+  @apply overflow-x-hidden;
 }
 
 .menu-topo {
@@ -85,7 +86,7 @@ body {
 }
 
 .texto-apoio{
-  @apply text-lg font-medium;
+  @apply text-xl font-medium text-[#8a93a3];
 }
 
 .botoes-acoes {
@@ -244,29 +245,7 @@ body {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*fim da sessão como funciona*/
 
 
 
@@ -332,3 +311,80 @@ body {
 /*fim seção legal*/
 
 
+
+
+
+
+
+
+
+/*começo da personas*/
+
+
+.secao-ecossistema{
+  @apply py-24 bg-[#14171F];      /*fundo branco*/
+}
+
+.cabecalho-ecossistema {
+  @apply text-center max-w-2xl mx-auto mb-16;
+}
+
+.titulo-ecossistema{
+  @apply font-bold text-4xl text-white mb-4 leading-tight;
+}
+
+.titulo-ecossistema em{
+  font-style:normal;
+  color:var(--color-teal);
+}
+
+.subtitulo-ecossistema{
+  @apply text-xl text-[#8a93a3];                 /*cor meio */
+}
+
+.grid-persona{
+  @apply grid grid-cols-1 md:grid-cols-3 gap-8; 
+}
+
+.cartao-persona{
+  @apply relative overflow-hidden bg-[#f5f6f5] rounded-3xl p-10 flex flex-col transition-all duration-300;
+}
+
+.cartao-persona:hover {
+  @apply -translate-y-2 shadow-xl border border-teal;
+  background-color: #14171F;
+  background-image: radial-gradient(circle at top left, rgba(0, 217, 181, 0.15) 25%, transparent 70%);
+  
+  
+}
+
+.cartao-persona:hover .titulo-persona{
+  @apply text-teal;
+}
+
+.cartao-persona:hover .lista-vantagens{
+  @apply text-[#ffffff];
+}
+
+
+.icone-persona{
+  @apply relative z-10 w-14 h-14 rounded-xl /*border-2 border-teal*/ flex items-center justify-center mb-6 transition-colors duration-300;
+}
+
+.titulo-persona{
+  @apply relative z-10 font-bold text-2xl text-[#14171f] mb-6 transition-colors duration-300;
+}
+
+
+.lista-vantagens{
+  @apply relative z-10 flex flex-col gap-4 text-[15.5px] text-[#4b5563] transition-colors duration-300;
+}
+
+.lista-vantagens li {
+  @apply relative pl-6;
+}
+
+.lista-vantagens li::before {
+  content: "";
+  @apply absolute left-0 top-2 w-2 h-2 rounded-full bg-[#00D9B5];
+}
