@@ -353,7 +353,7 @@ body {
 .cartao-persona:hover {
   @apply -translate-y-2 shadow-xl border border-teal;
   background-color: #14171F;
-  background-image: radial-gradient(circle at top left, rgba(0, 217, 181, 0.15) 25%, transparent 70%);
+  background-image: radial-gradient(circle at top left, rgba(0, 217, 181, 0.15) -20%, transparent 50%);
   
   
 }
