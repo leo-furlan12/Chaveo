@@ -190,7 +190,7 @@ body {
 /*seção de como funciona*/
 
 .wrap {
-  @apply w-full max-w-[2100px] mx-auto px-8 md:px-12;
+  @apply w-full max-w-[1920px] mx-auto px-8 md:px-12;
 }
 
 .secao-como-funciona{
@@ -387,4 +387,80 @@ body {
 .lista-vantagens li::before {
   content: "";
   @apply absolute left-0 top-2 w-2 h-2 rounded-full bg-[#00D9B5];
+}
+
+
+
+
+/*Fim - personas*/
+
+
+
+
+
+
+
+
+
+
+/* sessão de duvidas */
+
+.sessao-duvidas {
+  @apply py-24;
+  background-color: var(--color-ink); 
+}
+
+.topo-duvidas {
+  @apply text-center max-w-2xl mx-auto mb-16;
+}
+
+.aviso-duvidas {
+  @apply font-semibold text-[#8A93A3] mb-2 uppercase tracking-wider text-sm;
+}
+
+.titulo-duvidas {
+  @apply font-bold text-4xl text-white mb-4 leading-tight;
+}
+
+.lista-duvidas {
+  @apply max-w-3xl mx-auto;
+}
+
+
+.caixa-duvida {
+  @apply border-b border-white/10 py-6;
+}
+.caixa-duvida:first-child {
+  @apply border-t border-white/10;
+}
+
+
+.pergunta-titulo {
+  @apply cursor-pointer list-none flex justify-between items-center gap-4 text-lg font-bold text-white transition-colors;
+}
+
+
+.pergunta-titulo:hover {
+  @apply text-[var(--color-teal)];
+}
+
+.icone-mais {
+  @apply shrink-0 w-7 h-7 rounded-full border border-white/20 flex items-center justify-center text-[18px] text-[#8A93A3] transition-transform duration-300;
+}
+
+.icone-mais:hover{
+  @apply text-teal;
+}
+
+
+details[open] .icone-mais {
+  @apply rotate-45 border-[var(--color-teal)] bg-[var(--color-teal)] text-[var(--color-ink)];
+}
+
+details[open] .icone-mais:hover {
+  @apply rotate-45 border-[var(--color-teal)] bg-[var(--color-ink)] text-[var(--color-teal)];
+}
+
+.resposta-duvida {
+  @apply mt-4 text-[#8A93A3] text-[15.5px] leading-relaxed pr-10;
 }

@@ -266,6 +266,68 @@ export default function Homepage() {
 
         </section>
 
+
+
+
+
+
+
+
+
+        <section className="sessao-duvidas" id="perguntas">
+          <div className="wrap">
+            
+            <div className="topo-duvidas">
+              <p className="aviso-duvidas">Perguntas</p>
+              <h2 className="titulo-duvidas">O que quem já usa pergunta antes.</h2>
+            </div>
+
+            <div className="lista-duvidas">
+              
+              <details className="caixa-duvida" open>
+                <summary className="pergunta-titulo">
+                  Preciso saber de contrato pra usar?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">Não. O wizard pergunta os dados do imóvel, do inquilino, valor e prazo, e monta o contrato dentro da Lei do Inquilinato sozinho. Você revisa e assina.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  O Chaveo escolhe o inquilino pra mim?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">Não — essa parte continua com você. O app cuida do que vem depois: contrato, cobrança, vistoria e imposto. Assim ele fica fora da regulação de corretagem.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  E se o inquilino atrasar o Pix?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">O Chaveo manda lembrete automático antes do vencimento e calcula multa e juros sozinho a partir do dia seguinte, seguindo o que está no contrato.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  Como funciona o Carnê-Leão dentro do app?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">Todo mês o Chaveo soma o que você recebeu, aplica a tabela do IR vigente e já deixa as despesas dedutíveis (IPTU, condomínio, reparos) organizadas para a declaração.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  Preciso de fiador ou posso usar caução?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">As duas opções ficam disponíveis no wizard de contrato, dentro do limite que a Lei do Inquilinato permite — você escolhe qual usar com cada inquilino.</p>
+              </details>
+
+            </div>
+          </div>
+        </section>
+
       </main>
     </>
   );
