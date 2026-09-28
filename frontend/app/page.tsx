@@ -1,69 +1,346 @@
-import Image from "next/image";
-
-export default function Home() {
+export default function Homepage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      <header className="menu-topo">
+        <div className="nome">
+          <svg
+            className="icone-logo"
+            viewBox="0 0 120 120"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M18 40 V22 a4 4 0 0 1 4 -4 H40"
+              stroke="#00D9B5"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+            <path
+              d="M102 40 V22 a4 4 0 0 0 -4 -4 H80"
+              stroke="#00D9B5"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+            <path
+              d="M18 80 V98 a4 4 0 0 0 4 4 H40"
+              stroke="#00D9B5"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+            <path
+              d="M102 80 V98 a4 4 0 0 1 -4 4 H80"
+              stroke="#00D9B5"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+            <circle cx="60" cy="52" r="14" fill="#00D9B5" />
+            <path d="M60 64 L50 86 H70 Z" fill="#00D9B5" />
+          </svg>
+          <h3>Chaveo</h3>
+        </div>
+
+        <nav className="menu">
+          <a href="#como-funciona" className="item-menu">Como Funciona?</a>
+          <a href="#para-quem-serve" className="item-menu">Para Quem Serve?</a>
+          <a href="#perguntas" className="item-menu">Perguntas</a>
+          <a href="#" className="item-menu">Cadastre-se</a>
+          <a href="#" className="botao-login">Login</a>
+        </nav>
+      </header>
+
+      <main>
+        <section className="apresentacao">
+          <div className="coluna-texto">
+            <h1 className="titulo-principal">
+              O aluguel do seu jeito,
+              sem passar a chave
+              pra <em>imobiliária</em>.
+            </h1>
+
+            <p className="texto-apoio">
+              Chaveo gera o contrato, cobra o Pix, lembra o inquilino, tudo isso na palma da sua mão. 
+              Sem comissão sobre o aluguel — só uma assinatura fixa, todo mês, do mesmo jeito.
+            </p>
+
+            <div className="botoes-acoes">
+              <a href="#teste" className="btn-criar-conta">
+                Criar minha conta
+              </a>
+              <a href="#como-funciona" className="btn-ver-funciona">
+                Ver como funciona
+              </a>
+            </div>
+          </div>
+
+          <div className="coluna-ilustracao">
+            <div className="brilho-fundo"></div>
+            <div className="container-recibo">
+              <div className="recibo-velho">
+                <span className="etiqueta-recibo"> IMOBILIÀRIA</span>
+                <span className="valor-riscado"> R$375 /<small>mês</small></span>
+                <span className="subtexto-recibo"> 10% do aluguel</span>
+                <span className="subtexto-recibo"> taxa de administração</span>
+                <span className="subtexto-recibo"> descontado direto do aluguel</span>
+                <span className="subtexto-recibo"> Reparos superfaturados com prestadores deles</span>
+              </div>
+              <div className="recibo-novo">
+                <span className="etiqueta-recibo">CHAVEO</span>
+                <span className="valor-destaque"> fixo /<small>mês</small></span>
+                <span className="subtexto-recibo"> 100% do aluguel é seu</span>
+                <span className="subtexto-recibo"> Cobrança e lembretes automáticos</span>
+                <span className="subtexto-recibo"> Contato direto com o seu inquilino</span>
+                <span className="subtexto-recibo"> Tudo reolvido pelo celular</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <section className="secao-como-funciona" id="como-funciona">
+          <div className="wrap">
+
+            <div className="cabecalho-etapas">
+              <div className="etiqueta-cinza">Do zero ao inquilo em casa</div>
+              <h2 className="titulo-etapas">Quatro etapas, uma de cada vez</h2>
+              <p className="subtitulo-etapas">
+                É a mesma sequência que uma imobiliária segue — só que quem aperta o botão é você.
+              </p>
+            </div>
+
+            <div id="como-funciona" className="fluxo-etapas">
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/contrato.svg" alt="Ícone de trabalho" className="icones"/>
+                </div>
+                <h3 className="etapa-titulo"> Contratos</h3>
+                <p className="etapa-texto">Wizard monta o contrato residencial seguindo a Lei do Inquilinato, com valor, prazo, índice e garantia. Assinatura eletrônica dos dois lados.</p>
+              </div>
+
+              <img src="/icones-homepage/seta.svg" alt="Seta" className="seta-fluxo"/>
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/cobrança.svg" alt="Ícone de Cobrança" className="icones"/>
+                </div>
+                <h3 className="etapa-titulo">Cobranças</h3>
+                <p className="etapa-texto">
+                  Pix recorrente, lembrete automático antes do vencimento, multa e juros calculados sozinhos, reajuste anual por IGP-M ou IPCA.
+                </p>
+              </div>
+
+              <img src="/icones-homepage/seta.svg" alt="Seta" className="seta-fluxo"/>
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/vistoria.svg" alt="Ícone de Vistoria" className="icones" />
+                </div>
+                <h3 className="etapa-titulo"> Vistoria</h3>
+                <p className="etapa-texto">
+                  Checklist fotográfico na entrada e na saída, pra não sobrar dúvida sobre quem paga o quê na devolução das chaves.
+                </p>
+              </div>
+
+              <img src="/icones-homepage/seta.svg" alt="Seta" className="seta-fluxo" />
+
+              <div className="etapa-bloco">
+                <div className="etapa-icone">
+                  <img src="/icones-homepage/casa.svg" alt="Casa"  className="icones"/>
+                </div>
+                <div className="etapa-titulo">Sucesso!</div>
+                <p className="etapa-texto">
+                  Sucesso, Inquilo já pode morar na casa!!
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+
+        <section className="secao-azul">
+          <div className="wrap">
+            <div className="cartao-branco">
+              <div className="lado-esquerdo">
+
+                <div className="selo-verde">
+                  <span className="text-[#00D9B5]"></span> dentro da lei
+                </div>
+                <h2 className="titulo-cartao"> Isso é regularizado??</h2>
+                <p className="texto-cartao"> Sim. A Lei do Inquilinato (8.245/91) nunca exigiu um corretor no meio — proprietário e inquilino sempre puderam fechar o contrato direto.</p>
+                <p className="texto-cartao"> Chaveo automatiza o que já era administrativo: gerar contrato, cobrar e calcular imposto. Quem escolhe o inquilino é você, fora do app.</p>
+              </div>
+
+              <div className="lado-direito">
+                <div className="item-lista">
+                  <div className="numero">01</div>
+                  <div className="conteudo-item">
+                    <h4 className="titulo-item">Sem Captação, sem intermediação</h4>
+                    <p className="desc-item"> O app não anuncia o imóvel nem indica inquilino — por isso fica fora do escopo da corretagem regulada pela Lei 6.530/78.</p>
+                  </div>
+                </div>
+
+                <div className="item-lista">
+                  <div className="numero">02</div>
+                  <div className="conteudo-item">
+                    <h4 className="titulo-item">Assinatura eletrônica com validade legal</h4>
+                    <p className="desc-item">
+                      Reconhecida pelas Leis 14.063/2020 e 14.620/2023 — o mesmo contrato que valeria em papel, só que mais rápido.
+                    </p>
+                  </div>
+                </div>
+
+
+                <div className="item-lista border-none">
+                  <div className="numero">03</div>
+                  <div className="conteudo-item">
+                    <h4 className="titulo-item">Pix processado por instituição licenciada</h4>
+                    <p className="desc-item">
+                       A cobrança recorrente passa por um parceiro de pagamento autorizado pelo Banco Central — o Chaveo nunca guarda seu dinheiro.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+
+        <section id="para-quem-serve" className="secao-ecossistema">
+          <div className="wrap">
+
+            <div className="cabecalho-ecossistema">
+              <h2 className="titulo-ecossistema">Bom para quem aluga, mora e <em>conserta.</em></h2>
+              <p className="subtitulo-ecossistema"> Um ecossistema onde todos ganham e a burocracia desaparece</p>
+            </div>
+          
+
+
+            <div className="grid-persona"> 
+              <div className="cartao-persona">
+                <div className="icone-persona">
+                  <img src="/icones-homepage/proprietário.svg" alt="Icone Proprietário" className="icone" />
+                </div>
+                <h3 className="titulo-persona">Proprietário</h3>
+                <ul className="lista-vantagens">
+                  <li>Fica com 100% do valor do aluguel.</li>
+                  <li>Não recebe ligações de madrugada para trocar resistência de chuveiro.</li>
+                  <li>Controle total dos recebimentos pelo celular.</li>
+                </ul>
+              </div>
+            
+
+
+            
+              <div className="cartao-persona">
+                <div className="icone-persona">
+                  <img src="/icones-homepage/inquilino.svg" alt="Icone Inquilino" className="icone" />
+                </div>
+                <h3 className="titulo-persona"> Inquilino</h3>
+                <ul className="lista-vantagens">
+                  <li>Abre chamados de manutenção direto no app.</li>
+                  <li>Encontra prestadores locais avaliados num clique.</li>
+                  <li>Histórico de pagamentos transparente via Pix.</li>
+                </ul>
+              </div>
+            
+
+
+
+            
+              <div className="cartao-persona">
+                <div className="icone-persona">
+                  <img src="/icones-homepage/prestador.svg" alt="Icone Prestador" className="icones" />
+                </div>
+                <h3 className="titulo-persona">Prestador</h3>
+                <ul className="lista-vantagens">
+                  <li>Ganhe visibilidade no bairro sem gastar com anúncios.</li>
+                  <li>Contrato e negociação direta com o inquilino.</li>
+                  <li>Zero taxas ou comissões cobradas pelo app.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+
+        </section>
+
+
+
+
+
+
+
+
+
+        <section className="sessao-duvidas" id="perguntas">
+          <div className="wrap">
+            
+            <div className="topo-duvidas">
+              <p className="aviso-duvidas">Perguntas</p>
+              <h2 className="titulo-duvidas">O que quem já usa pergunta antes.</h2>
+            </div>
+
+            <div className="lista-duvidas">
+              
+              <details className="caixa-duvida" open>
+                <summary className="pergunta-titulo">
+                  Preciso saber de contrato pra usar?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">Não. O wizard pergunta os dados do imóvel, do inquilino, valor e prazo, e monta o contrato dentro da Lei do Inquilinato sozinho. Você revisa e assina.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  O Chaveo escolhe o inquilino pra mim?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">Não — essa parte continua com você. O app cuida do que vem depois: contrato, cobrança, vistoria e imposto. Assim ele fica fora da regulação de corretagem.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  E se o inquilino atrasar o Pix?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">O Chaveo manda lembrete automático antes do vencimento e calcula multa e juros sozinho a partir do dia seguinte, seguindo o que está no contrato.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  Como funciona o Carnê-Leão dentro do app?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">Todo mês o Chaveo soma o que você recebeu, aplica a tabela do IR vigente e já deixa as despesas dedutíveis (IPTU, condomínio, reparos) organizadas para a declaração.</p>
+              </details>
+
+              <details className="caixa-duvida">
+                <summary className="pergunta-titulo">
+                  Preciso de fiador ou posso usar caução?
+                  <span className="icone-mais">+</span>
+                </summary>
+                <p className="resposta-duvida">As duas opções ficam disponíveis no wizard de contrato, dentro do limite que a Lei do Inquilinato permite — você escolhe qual usar com cada inquilino.</p>
+              </details>
+
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <footer className="rodape">
+        <div className="wrap conteudo-rodape">
+          <div className="marca-rodape">
+            Chaveo
+          </div>
+          <p className="texto-rodape">
+            © 2026 Chaveo. Todos os direitos reservados.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </footer>
+    </>
   );
 }

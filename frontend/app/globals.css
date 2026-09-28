@@ -1,26 +1,486 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-ink: #14171F;
+  --color-ink-soft: #1D212C;
+  --color-teal: #00D9B5;
+  --color-teal-dim: #0B4A41;
+  --color-amber: #FFB84D;
+  --color-paper: #F5F6F5;
+  --color-slate: #8A93A3;
+  --color-slate-dark: #4B5563;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  @apply overflow-x-hidden;
+}
+
+.menu-topo {
+  @apply fixed w-full left-0 top-0 z-50 flex items-center justify-between p-6 backdrop-blur-md transition-all;
+  background-color: rgba(20, 23, 31, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nome {
+  @apply flex items-center gap-2 text-2xl font-bold;
+  color: var(--color-teal);
+}
+
+.icone-logo {
+  @apply w-7 h-7 shrink-0;
+}
+
+.menu {
+  @apply flex items-center gap-6;
+}
+
+.item-menu {
+  @apply font-black transition-colors;
+  color:white;
+}
+
+.item-menu:hover {
+  color: var(--color-teal);
+}
+
+.botao-login {
+  @apply px-4 py-2 rounded-xl font-bold transition-all;
+  background-color: var(--color-teal);
+  color: var(--color-ink);
+}
+
+.botao-login:hover {
+  filter: brightness(0.95);
+  background-color: var(--color-ink);
+  color: var(--color-teal);
+}
+
+/* texto lado esquerdo */
+
+
+.apresentacao {
+  @apply min-h-screen flex items-center px-8 md:px-16 pt-28;
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+
+.apresentacao-container {
+  @apply w-full;
+}
+
+.coluna-texto {
+  @apply max-w-4xl flex flex-col items-start;
+}
+
+.titulo-principal {
+  @apply text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6;
+  color:white;
+}
+
+.titulo-principal em{
+  font-style: normal;
+  color:var(--color-teal);
+}
+
+.texto-apoio{
+  @apply text-xl font-medium text-[#8a93a3];
+}
+
+.botoes-acoes {
+  @apply flex flex-wrap gap-4 mt-10;
+}
+
+.btn-criar-conta{
+  @apply px-6 py-3.5 rounded-xl font-bold border border-white/20 transition-colors;
+  background-color: var(--color-teal);
+  color:var(--color-ink);
+}
+
+.btn-criar-conta:hover {
+  filter: brightness(0.95);
+  background-color: var(--color-ink);
+  color: var(--color-teal);
+}
+
+.btn-ver-funciona {
+  @apply px-6 py-3.5 rounded-xl font-bold border border-white/20 transition-colors;
+  color: var(--color-paper);
+}
+
+.btn-ver-funciona:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/*fim do texto lado esquerdo*/
+
+
+
+
+/* recibo lado direito*/
+
+.coluna-ilustracao{
+  @apply relative w-full flex justify-center items-center;
+}
+
+.brilho-fundo{
+  @apply absolute w-[2110px] h-[2110px] rounded-full pointer-events-none;
+  background: radial-gradient(circle, rgba(0,217,181,0.22) -60%, rgba(0,217,181,0) 60%);
+}
+
+.container-recibo{
+  @apply relative w-full max-w-[320px] flex flex-col gap-10 z-10;
+}
+
+.recibo-velho{
+  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[-6.4deg] transition-all duration-400;
+  background-color: #edeeea;
+  color: var(--color-ink);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 90%, 87.5% 100%, 75% 90%, 62.5% 100%, 50% 90%, 37.5% 100%, 25% 90%, 12.5% 100%, 0% 90%);
+  
+}
+
+.recibo-velho:hover{
+ @apply -translate-y-5 border-2 border-[black];
+  
+}
+
+.recibo-novo{
+  @apply flex flex-col rounded-xl p-8 shadow-2xl rotate-[1.2deg] transition-all duration-400;
+  background-color: var(--color-teal);
+  color: var(--color-ink);
+  clip-path: polygon(0% 10%, 12.5% 0%, 25% 10%, 37.5% 0%, 50% 10%, 62.5% 0%, 75% 10%, 87.5% 0%, 100% 10%, 100% 100%, 0% 100%);
+}
+
+.recibo-novo:hover{
+  @apply translate-y-5 border-2;
+
+}
+
+
+.etiqueta-recibo {
+  @apply font-bold leading-tight mb-8 text-[11px] tracking-widest opacity-60 mb-3;
+}
+
+.valor-riscado{
+  @apply font-bold text-3xl leading-none line-through decoration-black/35 decoration-2;
+}
+
+.valor-destaque{
+  @apply font-bold text-3xl leading-none;
+}
+
+.valor-riscado small,
+.valor-destaque small {
+  @apply text-[15px] font-medium opacity-60 ml-1 inline-block no-underline;
+}
+.subtexto-recibo{
+  @apply text-[12px] opacity-60 mt-2 list-item list-disc list-inside;
+}
+
+
+
+/*fim recibo do lado direito*/
+
+
+
+
+/*seção de como funciona*/
+
+.wrap {
+  @apply w-full max-w-[1720px] mx-auto px-8 md:px-12;
+}
+
+.secao-como-funciona{
+@apply pt-12 pb-32 bg-[#14171F] text-[#F5F6F5]; 
+}
+
+.cabecalho-etapas{
+  @apply max-w-[620px] mb-16;
+}
+
+.etiqueta-cinza{
+  @apply text-2xl text-[#8a93a3] font-semibold mb-2.5;
+}
+
+.titulo-etapas{
+  @apply text-white font-bold text-3xl md:text-4xl mb-4 leading-tight;
+}
+
+.subtitulo-etapas{
+  @apply text-xl text-[#8a93a3];
+}
+
+.fluxo-etapas{
+  @apply flex flex-col md:flex-row items-start gap-4 md:gap-0;
+}
+
+.etapa-bloco{
+  @apply flex-1 flex flex-col min-w-0;
+}
+
+.etapa-icone{
+  @apply w-[46px] h-[46px] rounded-xl flex items-center justify-center text-[#009b5] mb-6 transition-all duration-400 ;
+}
+.etapa-icone:hover{
+@apply -translate-y-4;
+}
+
+.etapa-icone svg{
+  @apply w-[22px] h-[22px];
+}
+
+.etapa-titulo {
+  @apply text-white font-semibold text-xl mb-2.5;
+}
+
+.etapa-texto{
+  @apply text-xl text-[#8a93a3] pr-4;
+}
+
+.seta-fluxo{
+  @apply flex-shrink-0 w-5 h-5 text-[#2A2F3D] mt-3 md:mt-3 mx-2 md:mx-4 transform rotate-90 md:rotate-0 self-center md:self-start;
+}
+
+
+/*fim da sessão como funciona*/
+
+
+
+
+
+
+/*começo seção legal*/
+
+.secao-azul {
+  @apply py-24 bg-[#14171F]; 
+}
+
+
+.cartao-branco {
+  @apply w-full max-w-[1280px] mx-auto bg-white rounded-[32px] p-8 md:p-12 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 shadow-2xl;
+}
+
+.lado-esquerdo {
+  @apply flex flex-col items-start;
+}
+
+.selo-verde {
+  @apply inline-flex items-center font-bold text-[12px] text-[#0B7A5E] bg-[#E3F5EF] px-3 py-1.5 rounded-full mb-6;
+}
+
+.titulo-cartao {
+  @apply font-bold text-3xl md:text-4xl text-[#14171F] mb-6 leading-tight;
+}
+
+.texto-cartao {
+  @apply text-[16px] text-[#4B5563] mb-4 max-w-[420px];
+}
+
+
+.lado-direito {
+  @apply flex flex-col;
+}
+
+.item-lista {
+  @apply flex gap-5 py-6 border-b border-gray-200 first:pt-0 last:pb-0 last:border-0;
+}
+
+.numero {
+  @apply font-mono text-[13px] text-[#8A93A3] pt-1 flex-shrink-0;
+}
+
+.conteudo-item {
+  @apply flex flex-col gap-1.5;
+}
+
+.titulo-item {
+  @apply font-semibold text-[16.5px] text-[#14171F];
+}
+
+.desc-item {
+  @apply text-[14.5px] text-[#4B5563] leading-relaxed;
+
+  
+}
+
+
+
+/*fim seção legal*/
+
+
+
+
+
+
+
+
+
+/*começo da personas*/
+
+
+.secao-ecossistema{
+  @apply py-24 bg-[#14171F];      /*fundo branco*/
+}
+
+.cabecalho-ecossistema {
+  @apply text-center max-w-2xl mx-auto mb-16;
+}
+
+.titulo-ecossistema{
+  @apply font-bold text-4xl text-white mb-4 leading-tight;
+}
+
+.titulo-ecossistema em{
+  font-style:normal;
+  color:var(--color-teal);
+}
+
+.subtitulo-ecossistema{
+  @apply text-xl text-[#8a93a3];                 /*cor meio */
+}
+
+.grid-persona{
+  @apply grid grid-cols-1 md:grid-cols-3 gap-8; 
+}
+
+.cartao-persona{
+  @apply relative overflow-hidden bg-[#f5f6f5] rounded-3xl p-10 flex flex-col transition-all duration-300;
+}
+
+.cartao-persona:hover {
+  @apply -translate-y-2 shadow-xl border border-teal;
+  background-color: #14171F;
+  background-image: radial-gradient(circle at top left, rgba(0, 217, 181, 0.15) -20%, transparent 50%);
+  
+  
+}
+
+.cartao-persona:hover .titulo-persona{
+  @apply text-teal;
+}
+
+.cartao-persona:hover .lista-vantagens{
+  @apply text-[#ffffff];
+}
+
+
+.icone-persona{
+  @apply relative z-10 w-14 h-14 rounded-xl /*border-2 border-teal*/ flex items-center justify-center mb-6 transition-colors duration-300;
+}
+
+.titulo-persona{
+  @apply relative z-10 font-bold text-2xl text-[#14171f] mb-6 transition-colors duration-300;
+}
+
+
+.lista-vantagens{
+  @apply relative z-10 flex flex-col gap-4 text-[15.5px] text-[#4b5563] transition-colors duration-300;
+}
+
+.lista-vantagens li {
+  @apply relative pl-6;
+}
+
+.lista-vantagens li::before {
+  content: "";
+  @apply absolute left-0 top-2 w-2 h-2 rounded-full bg-[#00D9B5];
+}
+
+
+
+
+/*Fim - personas*/
+
+
+
+
+
+
+
+
+
+
+/* sessão de duvidas */
+
+.sessao-duvidas {
+  @apply py-24;
+  background-color: var(--color-ink); 
+}
+
+.topo-duvidas {
+  @apply text-center max-w-2xl mx-auto mb-16;
+}
+
+.aviso-duvidas {
+  @apply font-semibold text-[#8A93A3] mb-2 uppercase tracking-wider text-sm;
+}
+
+.titulo-duvidas {
+  @apply font-bold text-4xl text-white mb-4 leading-tight;
+}
+
+.lista-duvidas {
+  @apply max-w-3xl mx-auto;
+}
+
+
+.caixa-duvida {
+  @apply border-b border-white/10 py-6;
+}
+.caixa-duvida:first-child {
+  @apply border-t border-white/10;
+}
+
+
+.pergunta-titulo {
+  @apply cursor-pointer list-none flex justify-between items-center gap-4 text-lg font-bold text-white transition-colors;
+}
+
+
+.pergunta-titulo:hover {
+  @apply text-[var(--color-teal)];
+}
+
+.icone-mais {
+  @apply shrink-0 w-7 h-7 rounded-full border border-white/20 flex items-center justify-center text-[18px] text-[#8A93A3] transition-transform duration-300;
+}
+
+.icone-mais:hover{
+  @apply text-teal;
+}
+
+
+details[open] .icone-mais {
+  @apply rotate-45 border-[var(--color-teal)] bg-[var(--color-teal)] text-[var(--color-ink)];
+}
+
+details[open] .icone-mais:hover {
+  @apply rotate-45 border-[var(--color-teal)] bg-[var(--color-ink)] text-[var(--color-teal)];
+}
+
+.resposta-duvida {
+  @apply mt-4 text-[#8A93A3] text-[15.5px] leading-relaxed pr-10;
+}
+
+
+
+.rodape{
+  @apply py-8 border-t border-white/10;
+  background-color: var(--color-ink);
+}
+
+.conteudo-rodape{
+  @apply flex flex-col md:flex-row justify-center items-center gap-8;
+}
+
+.marca-rodape{
+  @apply font-bold text-xl;
+  color: var(--color-teal);
+}
+
+.texto-rodape{
+  @apply text-[#8A93A3] text-sm text-center md:text-right;
 }
