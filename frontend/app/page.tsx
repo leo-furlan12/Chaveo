@@ -329,6 +329,17 @@ export default function Homepage() {
         </section>
 
       </main>
+
+      <footer className="rodape">
+        <div className="wrap conteudo-rodape">
+          <div className="marca-rodape">
+            Chaveo
+          </div>
+          <p className="texto-rodape">
+            © 2026 Chaveo. Todos os direitos reservados.
+          </p>
+        </div>
+      </footer>
     </>
   );
 }

@@ -190,7 +190,7 @@ body {
 /*seção de como funciona*/
 
 .wrap {
-  @apply w-full max-w-[1920px] mx-auto px-8 md:px-12;
+  @apply w-full max-w-[1720px] mx-auto px-8 md:px-12;
 }
 
 .secao-como-funciona{
@@ -463,4 +463,24 @@ details[open] .icone-mais:hover {
 
 .resposta-duvida {
   @apply mt-4 text-[#8A93A3] text-[15.5px] leading-relaxed pr-10;
+}
+
+
+
+.rodape{
+  @apply py-8 border-t border-white/10;
+  background-color: var(--color-ink);
+}
+
+.conteudo-rodape{
+  @apply flex flex-col md:flex-row justify-center items-center gap-8;
+}
+
+.marca-rodape{
+  @apply font-bold text-xl;
+  color: var(--color-teal);
+}
+
+.texto-rodape{
+  @apply text-[#8A93A3] text-sm text-center md:text-right;
 }
