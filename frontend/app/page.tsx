@@ -40,8 +40,9 @@ export default function Homepage() {
         </div>
 
         <nav className="menu">
-          <a href="#" className="item-menu">Como Funciona?</a>
-          <a href="#" className="item-menu">Perguntas</a>
+          <a href="#como-funciona" className="item-menu">Como Funciona?</a>
+          <a href="#para-quem-serve" className="item-menu">Para Quem Serve?</a>
+          <a href="#perguntas" className="item-menu">Perguntas</a>
           <a href="#" className="item-menu">Cadastre-se</a>
           <a href="#" className="botao-login">Login</a>
         </nav>
@@ -106,7 +107,7 @@ export default function Homepage() {
               </p>
             </div>
 
-            <div className="fluxo-etapas">
+            <div id="como-funciona" className="fluxo-etapas">
 
               <div className="etapa-bloco">
                 <div className="etapa-icone">
@@ -207,7 +208,7 @@ export default function Homepage() {
         </section>
 
 
-        <section className="secao-ecossistema">
+        <section id="para-quem-serve" className="secao-ecossistema">
           <div className="wrap">
 
             <div className="cabecalho-ecossistema">
