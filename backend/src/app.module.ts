@@ -22,7 +22,7 @@ import { AppService } from './app.service';
         database: configService.get<string>('DB_DATABASE'),
 
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
       }),
     }),
   ],
