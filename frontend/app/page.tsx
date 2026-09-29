@@ -36,7 +36,7 @@ export default function Homepage() {
             <circle cx="60" cy="52" r="14" fill="#00D9B5" />
             <path d="M60 64 L50 86 H70 Z" fill="#00D9B5" />
           </svg>
-          <h3>Chaveo</h3>
+          <h3>Chaveo aaa</h3>
         </div>
 
         <nav className="menu">
