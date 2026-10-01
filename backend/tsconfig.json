@@ -12,7 +12,6 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["node", "jest"],
     "sourceMap": true,
     "incremental": true,
     "skipLibCheck": true,
