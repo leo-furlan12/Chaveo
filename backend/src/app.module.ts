@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -24,10 +25,12 @@ import { AppService } from './app.service';
         autoLoadEntities: true,
         synchronize: false,
       }),
-    }),
+    }), 
+    AuthModule,
   ],
+ 
 
   controllers: [AppController],
-  providers: [AppService],
+providers: [AppService],
 })
 export class AppModule {}
