@@ -63,11 +63,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-<<<<<<< HEAD
-=======
       - /app/.next
      
->>>>>>> origin/dev
     depends_on:
       - backend
     networks:
