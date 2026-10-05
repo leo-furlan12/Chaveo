@@ -6,6 +6,9 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+
+//arquivo que indica a composição do site ao nest
+
 @Module({
   imports: [
     ConfigModule.forRoot({
