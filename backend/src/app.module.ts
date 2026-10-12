@@ -4,6 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ImoveisController } from './controllers/imoveisController';
+import { Imovel } from './database/entities/imovel.entity';
+// 1. AQUI: Importamos a entidade Usuario
+import { Usuario } from './database/entities/usuario.entity';
 
 @Module({
   imports: [
@@ -22,12 +26,17 @@ import { AppService } from './app.service';
         database: configService.get<string>('DB_DATABASE'),
 
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: true,
       }),
     }),
+    
+    TypeOrmModule.forFeature([Imovel, Usuario])
   ],
 
-  controllers: [AppController],
+  controllers: [
+    AppController,
+    ImoveisController
+  ],
   providers: [AppService],
 })
 export class AppModule {}
