@@ -6,6 +6,7 @@
 }
 
 
+
 .fundo-dashboard-falso {
   @apply fixed bg-cover bg-center;
   top: 0; right: 0; bottom: 0; left: 0; 
@@ -178,4 +179,16 @@
   filter: brightness(0.9);
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(0, 217, 181, 0.2);
+}
+
+
+/* --- Fonte Consolas para todo o Modal --- */
+.caixa-modal,
+.caixa-modal h2,
+.caixa-modal h3,
+.caixa-modal input,
+.caixa-modal select,
+.caixa-modal button,
+.caixa-modal label {
+  font-family: 'Consolas', monospace !important;
 }
