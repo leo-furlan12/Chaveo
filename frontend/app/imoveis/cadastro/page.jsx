@@ -65,20 +65,56 @@ export default function CadastrarImovel(){
     });
 
 
-    //atualiza a memória sempre que o usuário digitar
-    const lidarComMudanca = (e) => {
-        const { id, value } = e.target;
+
+
+
+    // 1. Função que vai no ViaCEP buscar os dados na internet
+  const buscarCep = async (cepDigitado) => {
+    const cepNumeros = cepDigitado.replace(/\D/g, ''); // Limpa o tracinho para a API
+    
+    try {
+      const resposta = await fetch(`https://viacep.com.br/ws/${cepNumeros}/json/`);
+      const dados = await resposta.json();
+
+      // Se o ViaCEP encontrou a rua, atualiza a memória de uma vez só!
+      if (!dados.erro) {
         setDadosImovel((estadoAnterior) => ({
-            ...estadoAnterior,
-            [id]: value
+          ...estadoAnterior,
+          logradouro: dados.logradouro,
+          bairro: dados.bairro,
+          cidade: dados.localidade, // O ViaCEP chama cidade de 'localidade'
+          estado: dados.uf          // O ViaCEP chama estado de 'uf'
         }));
-    };
+      }
+    } catch (erro) {
+      console.error("Erro ao buscar o CEP:", erro);
+    }
+  };
 
+  // 2. Nossa função atualizada com máscara de CEP e o gatilho da busca
+  const lidarComMudanca = (e) => {
+    let { id, value } = e.target;
 
+    // Máscara: Coloca o tracinho no CEP automaticamente (Ex: 87300-000)
+    if (id === 'cep') {
+      value = value.replace(/\D/g, ''); // Impede de digitar letras
+      if (value.length > 5) {
+        value = value.replace(/^(\d{5})(\d)/, '$1-$2'); // Bota o traço depois do 5º número
+      }
+    }
 
+    // Salva na memória o que foi digitado
+    setDadosImovel((estadoAnterior) => ({
+      ...estadoAnterior,
+      [id]: value
+    }));
 
-
-
+    // Se o campo for o CEP e bater 8 números, dispara a busca do ViaCEP!
+    if (id === 'cep' && value.replace(/\D/g, '').length === 8) {
+      buscarCep(value);
+    }
+  };
+    
 
 
   return (
