@@ -168,14 +168,14 @@
   color: var(--color-paper);
 }
 
-.botao-salvar {
+.botao-sucesso {
   @apply border-none px-7 py-3 rounded-xl font-extrabold cursor-pointer transition-all duration-200 flex items-center gap-2;
   font-size: 15px;
   background-color: var(--color-teal);
   color: var(--color-ink);
 }
 
-.botao-salvar:hover {
+.botao-sucesso:hover {
   filter: brightness(0.9);
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(0, 217, 181, 0.2);

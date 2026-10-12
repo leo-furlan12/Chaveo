@@ -114,6 +114,16 @@ export default function CadastrarImovel(){
       buscarCep(value);
     }
   };
+
+  // 3. Função que engatilha o salvamento final
+  const lidarComEnvio = (e) => {
+    e.preventDefault(); // Impede a página de recarregar (dar F5)
+    
+    // Aqui no futuro vai o fetch() enviando pro seu backend (Issue #32)
+    console.log("🚀 Pacote pronto para o banco de dados:", dadosImovel);
+    
+    alert("Dados capturados com sucesso! Abra o console (F12) para ver o pacote JSON.");
+  };
     
 
 
@@ -130,7 +140,7 @@ export default function CadastrarImovel(){
           </header>
 
           <main className="corpo-modal">
-            <form id="formulario-imovel">
+            <form id="formulario-imovel" onSubmit={lidarComEnvio}>
               
               <h3 className="titulo-secao">
                 <img src="/icones-homepage/casa.svg" alt="Ícone Localização" className="icone-secao" />
@@ -235,15 +245,15 @@ export default function CadastrarImovel(){
 
              </div>
 
+                <footer className="rodape-modal">
+                <button type="button" className="botao-cancelar">Cancelar</button>
+                <button type="submit" className="botao-sucesso">Salvar Imóvel</button>
+                </footer>
+
             </form>
           </main>
 
-          <footer className="rodape-modal">
-            <button type="button" className="botao-cancelar">Cancelar</button>
-            <button type="submit" form="formulario-imovel" className="botao-salvar">
-              Salvar Imóvel
-            </button>
-          </footer>
+          
 
         </div>
       </div>
