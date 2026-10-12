@@ -1,0 +1,181 @@
+@reference "../../globals.css";
+
+@keyframes subirModal {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+
+.fundo-dashboard-falso {
+  @apply fixed bg-cover bg-center;
+  top: 0; right: 0; bottom: 0; left: 0; 
+  z-index: 0;
+  background-color: var(--color-ink);
+  background-image: linear-gradient(rgba(20, 23, 31, 0.8), rgba(20, 23, 31, 0.8));
+  filter: blur(4px);
+}
+
+.pelicula-escura {
+  @apply fixed flex items-center justify-center p-5;
+  top: 0; right: 0; bottom: 0; left: 0; 
+  z-index: 100; 
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+
+.caixa-modal {
+  @apply w-full flex flex-col;
+  max-width: 800px; 
+  max-height: 90vh; 
+  border-radius: 24px; 
+  background-color: var(--color-ink-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: subirModal 0.3s ease-out;
+}
+
+
+.cabecalho-modal {
+  @apply flex justify-between items-center px-8 py-6 border-b;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.titulo-modal {
+  @apply font-bold;
+  font-size: 20px;
+  color: var(--color-paper);
+}
+
+.botao-fechar {
+  @apply w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer transition-all duration-200;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-slate);
+}
+
+.botao-fechar:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-paper);
+}
+
+.corpo-modal {
+  @apply p-8 overflow-y-auto;
+}
+
+.titulo-secao {
+  @apply font-bold mb-6 flex items-center gap-2;
+  font-size: 16px;
+  color: var(--color-teal);
+}
+
+
+.icone-secao {
+  width: 20px;
+  height: 20px;
+}
+
+.margem-topo {
+  @apply mt-6;
+}
+
+.titulo-secao::after {
+  content: "";
+  @apply flex-1 ml-2;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.grade-formulario {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-5 mb-8;
+}
+
+.sem-margem-fundo {
+  @apply mb-0;
+}
+
+.linha-inteira {
+  @apply md:col-span-2;
+}
+
+.grupo-input {
+  @apply flex flex-col gap-2;
+}
+
+.rotulo {
+  @apply font-semibold;
+  font-size: 14px;
+  color: var(--color-paper);
+}
+
+.texto-opcional {
+  @apply font-normal;
+  font-size: 12px;
+  color: var(--color-slate);
+}
+
+.campo-digitacao {
+  @apply px-4 py-3.5 rounded-xl outline-none transition-all duration-200 w-full;
+  font-size: 15px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-paper);
+}
+
+.campo-digitacao:focus {
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 3px rgba(0, 217, 181, 0.1);
+}
+
+.campo-digitacao::placeholder {
+  color: var(--color-slate);
+  opacity: 0.6;
+}
+
+.campo-selecao {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300D9B5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px top 50%;
+  background-size: 12px auto;
+}
+
+.campo-selecao option {
+  background-color: var(--color-ink-soft);
+}
+
+.dica-campo {
+  @apply mt-1 flex items-center gap-1;
+  font-size: 12px;
+  color: var(--color-teal);
+}
+
+.rodape-modal {
+  @apply flex justify-end gap-4 px-8 py-6 border-t;
+  background-color: rgba(0,0,0, 0.1);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-bottom-left-radius: 24px; /* CSS Puro */
+  border-bottom-right-radius: 24px; /* CSS Puro */
+}
+
+.botao-cancelar {
+  @apply bg-transparent border border-transparent px-6 py-3 rounded-xl font-semibold cursor-pointer transition-all duration-200;
+  color: var(--color-slate);
+}
+
+.botao-cancelar:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--color-paper);
+}
+
+.botao-salvar {
+  @apply border-none px-7 py-3 rounded-xl font-extrabold cursor-pointer transition-all duration-200 flex items-center gap-2;
+  font-size: 15px;
+  background-color: var(--color-teal);
+  color: var(--color-ink);
+}
+
+.botao-salvar:hover {
+  filter: brightness(0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 217, 181, 0.2);
+}
