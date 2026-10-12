@@ -5,6 +5,7 @@ import {
 } from 'typeorm';
 
 @Entity('usuarios')
+
 export class Usuario {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: string;

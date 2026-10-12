@@ -9,6 +9,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: chaveo
+      
 
     ports:
       - "5432:5432"
@@ -39,7 +40,7 @@ services:
       DB_PASSWORD: postgres
       DB_DATABASE: chaveo
       PORT: 4000
-    
+      JWT_SECRET: ${JWT_SECRET} #token
     
 
     depends_on:
