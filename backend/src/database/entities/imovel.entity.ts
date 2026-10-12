@@ -13,14 +13,14 @@ export class Imovel {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: string;
 
-  @Column({ type: 'bigint' })
-  proprietario_id: string;
+  @Column({ type: 'bigint', nullable: true })
+  proprietario_id: string | null;
 
   @ManyToOne(() => Usuario)
   @JoinColumn({ name: 'proprietario_id' })
   proprietario: Usuario;
 
-  @Column({ type: 'varchar', length: 8 })
+  @Column({ type: 'varchar', length: 9 })
   cep: string;
 
   @Column({ type: 'varchar', length: 150 })
@@ -38,12 +38,12 @@ export class Imovel {
   @Column({ type: 'varchar', length: 100 })
   cidade: string;
 
- @Column({ type: 'char', length: 2 })
-estado: string;
+  @Column({ type: 'char', length: 2 })
+  estado: string;
 
   @Column({ type: 'varchar', length: 50 })
-  tipo_imovel: string;
+  tipo: string;
 
- @Column({ type: 'varchar', length: 20 })
-status: string;
+  @Column({ type: 'varchar', length: 20 })
+  status: string;
 }
