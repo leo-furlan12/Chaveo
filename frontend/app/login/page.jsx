@@ -1,61 +1,71 @@
 "use client"; //NEXT.JS
 
-
-import Logo from "../components/Logo"
+import Logo from "../components/Logo";
 import Checkbox from "../components/Checkbox";
 import Button from "./Button";
 import { useState } from "react";
+import { useRouter } from "next/navigation"; //rota
 
 //funções login/conexão com backend :
 
 export default function Login() {
-   const [cpf, setCpf] = useState("");
+  const router = useRouter();
+  const [cpf, setCpf] = useState("");
   //setCpf = função usada para alterar o cpf, eu quero morrer
   //cpf = valor atual
   const [senha, setSenha] = useState("");
-/*//funcao para enviar login
+  const [mensagem, setMensagem] = useState(""); //guarda mensagem de erro
+  const [erro, setErro] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  /*//funcao para enviar login
   function handleSubmit(event) {
   event.preventDefault(); //nao recarregar a pagina
 
   console.log("CPF:", cpf);
   console.log("Senha:", senha); */
   async function handleSubmit(event) {
-  event.preventDefault();
-
-  try {
-    const resposta = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/login`, //await = esperar respostas 
-      {
-        method: "POST", //metodo de envio de dados a backend por HTTP
-        headers: {
-          "Content-Type": "application/json",
+    event.preventDefault();
+    setMensagem("");
+    setErro(false);
+    setCarregando(true);
+    try {
+      const resposta = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`, //await = esperar respostas
+        {
+          method: "POST", //metodo de envio de dados a backend por HTTP
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            //javaScript que transforma cpf e senha em arquivo json
+            cpf: cpf,
+            senha: senha,
+          }),
         },
-        body: JSON.stringify({ //javaScript que transforma cpf e senha em arquivo json
-          cpf: cpf,
-          senha: senha,
-        }),
+      );
+
+      const dados = await resposta.json(); //pega resultados da função await resposta
+
+      if (!resposta.ok) {
+        //compara resultado de "resposta"(200 - correto 401-erro)
+        setErro(true);
+        setMensagem(dados.message || "Erro ao realizar login");
+        return;
       }
-    );
+      sessionStorage.setItem("token", dados.access_token); //verficar token quando funcioa, f12, aplplication, session, localhost3000
 
-    const dados = await resposta.json();//pega resultados da função await resposta 
+      setMensagem("Login realizado com sucesso!");
 
-    if (!resposta.ok) {//compara resultado de "resposta"(200 - correto 401-erro)
-      console.log("Erro no login:", dados.message);// mostra erro referente
-      return;
+      router.replace("/dashboardteste");
+    } catch (erro) {
+      //caso de erro
+      setErro(true);
+      setMensagem("Não foi possível conectar ao servidor.");
+    } finally {
+      //final da verificação
+      setCarregando(false); //carregando guarda valor de true ou false, aqui carregando é false
     }
-
-    console.log("Login realizado com sucesso!");
-    console.log("Token recebido?", Boolean(dados.access_token));
-
-  } catch (erro) {
-    console.error("Erro ao conectar com o backend:", erro);
-  }
 }
-
-
-
-
-
   return (
     <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-paper flex flex-col">
       <header>
@@ -78,7 +88,10 @@ export default function Login() {
             <h1 className="font-display text-4xl">Login</h1>
           </div>
 
-          <form  onSubmit={handleSubmit} className="grid grid-cols-2  gap-4 font-[family-name:var(--font-jetbrains-mono)]">
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-2  gap-4 font-[family-name:var(--font-jetbrains-mono)]"
+          >
             <div>CPF:</div>
             <div className="col-span-2 row-start-2">
               {" "}
@@ -90,7 +103,6 @@ export default function Login() {
                 placeholder="Insira seu CPF"
               />
             </div>
-
             <div className="col-span-2 row-start-3 ">Senha:</div>
             <div className="col-span-2 row-start-4">
               {" "}
@@ -107,12 +119,27 @@ export default function Login() {
             </div>
             <div
               className="row-start-5 text-teal  content-center text-right
-">
+"
+            >
               {" "}
               Esqueci Senha
             </div>
             <div className="col-span-2 text-center">
-              <Button texto="Entrar"></Button>
+              <Button
+                texto={carregando ? "Entrando..." : "Entrar"}
+                disabled={carregando}
+              />
+              {/* definir texto de botao com base na função que atua  */}
+              {mensagem && ( //se mostrar conteudo na mensagem
+                <p //abre um paragrafo para dar erro
+                  role={erro ? "alert" : "status"} //define css da mensagem de erro
+                  className={`col-span-2 text-center text-sm ${
+                    erro ? "text-red-400" : "text-teal"
+                  }`}
+                >
+                  {mensagem}
+                </p>
+              )}
             </div>
           </form>
         </div>
