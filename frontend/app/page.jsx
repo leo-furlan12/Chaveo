@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Homepage() {
   return (
     <>
@@ -43,7 +45,9 @@ export default function Homepage() {
           <a href="#como-funciona" className="item-menu">Como Funciona?</a>
           <a href="#para-quem-serve" className="item-menu">Para Quem Serve?</a>
           <a href="#perguntas" className="item-menu">Perguntas</a>
-          <a href="#" className="item-menu">Cadastre-se</a>
+          <Link href="/cadastro" className="item-menu">
+            Cadastre-se
+          </Link>
           <a href="#" className="botao-login">Login</a>
         </nav>
       </header>
@@ -63,9 +67,9 @@ export default function Homepage() {
             </p>
 
             <div className="botoes-acoes">
-              <a href="#teste" className="btn-criar-conta">
+              <Link href="/cadastro" className="btn-criar-conta">
                 Criar minha conta
-              </a>
+              </Link>
               <a href="#como-funciona" className="btn-ver-funciona">
                 Ver como funciona
               </a>

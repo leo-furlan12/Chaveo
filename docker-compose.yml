@@ -41,6 +41,7 @@ services:
       DB_DATABASE: chaveo
       PORT: 4000
       JWT_SECRET: ${JWT_SECRET} #token
+      CHOKIDAR_USEPOLLING: "true"
     
 
     depends_on:
