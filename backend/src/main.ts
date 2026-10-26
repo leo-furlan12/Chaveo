@@ -11,7 +11,7 @@ async function bootstrap() {
     credentials: true,
   });
   
-  const port = process.env.PORT || 4000;
+  const port = process.env.PORT || 4000; //backend espera requisições na porta 4000
   await app.listen(port);
 }
 bootstrap();

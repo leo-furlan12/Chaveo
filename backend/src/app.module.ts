@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -11,6 +12,9 @@ import { CadastroController } from './controllers/cadastroController';
 import { Usuario } from './database/entities/usuario.entity';
 import { Perfil } from './database/entities/perfil.entity';
 import { Prestador } from './database/entities/prestador.entity';
+
+
+//arquivo que indica a composição do site ao nest
 
 @Module({
   imports: [
@@ -31,10 +35,11 @@ import { Prestador } from './database/entities/prestador.entity';
         autoLoadEntities: true,
         synchronize: true,
       }),
-    }),
-    
+    }), 
+    AuthModule,
     TypeOrmModule.forFeature([Imovel, Usuario])
   ],
+ 
 
   controllers: [
     AppController,
