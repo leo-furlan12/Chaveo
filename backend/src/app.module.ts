@@ -6,8 +6,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ImoveisController } from './controllers/imoveisController';
 import { Imovel } from './database/entities/imovel.entity';
-// 1. AQUI: Importamos a entidade Usuario
+
+import { CadastroController } from './controllers/cadastroController';
 import { Usuario } from './database/entities/usuario.entity';
+import { Perfil } from './database/entities/perfil.entity';
+import { Prestador } from './database/entities/prestador.entity';
 
 @Module({
   imports: [
@@ -35,7 +38,8 @@ import { Usuario } from './database/entities/usuario.entity';
 
   controllers: [
     AppController,
-    ImoveisController
+    ImoveisController,
+    CadastroController
   ],
   providers: [AppService],
 })
