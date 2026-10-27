@@ -1,7 +1,7 @@
 // src/controllers/cadastroController.ts
 import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 
 import { Usuario } from '../database/entities/usuario.entity';
 import { Perfil } from '../database/entities/perfil.entity';

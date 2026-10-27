@@ -1,7 +1,10 @@
+//organiza modulos, controllers e providers
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
+import { ContratosController } from './controllers/contratosController';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -12,12 +15,13 @@ import { CadastroController } from './controllers/cadastroController';
 import { Usuario } from './database/entities/usuario.entity';
 import { Perfil } from './database/entities/perfil.entity';
 import { Prestador } from './database/entities/prestador.entity';
+import { Contrato } from './database/entities/contrato.entity';
 
 
 //arquivo que indica a composição do site ao nest
 
 @Module({
-  imports: [
+  imports: [ //importa outros modulos
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -32,20 +36,22 @@ import { Prestador } from './database/entities/prestador.entity';
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
 
-        autoLoadEntities: true,
-        synchronize: true,
+       autoLoadEntities: true,
+       synchronize: false,
       }),
     }), 
     AuthModule,
-    TypeOrmModule.forFeature([Imovel, Usuario])
+    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato])//forFeature registra repositorios dessas entidades 
+    //repositorio = objeto para realizar operacoes comco banco
   ],
  
 
-  controllers: [
+  controllers: [ //registra classes de controladores
     AppController,
     ImoveisController,
-    CadastroController
+    CadastroController,
+    ContratosController,
   ],
-  providers: [AppService],
+  providers: [AppService],//registra serviços e outros
 })
 export class AppModule {}
