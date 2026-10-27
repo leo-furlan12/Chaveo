@@ -14,7 +14,7 @@ export class InitialSchema1790623722011 implements MigrationInterface {
         "email" VARCHAR(255) NOT NULL,
         "telefone" VARCHAR(20),
         "senha_hash" VARCHAR(255) NOT NULL,
-        "data_cadastro" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "data_cadastro" TIMESTAMP DEFAULT now(),
         CONSTRAINT "usuarios_pkey" PRIMARY KEY ("id"),
         CONSTRAINT "usuarios_cpf_key" UNIQUE ("cpf"),
         CONSTRAINT "usuarios_email_key" UNIQUE ("email")
@@ -47,11 +47,11 @@ export class InitialSchema1790623722011 implements MigrationInterface {
         CONSTRAINT "usuarios_perfis_pkey"
           PRIMARY KEY ("usuario_id", "perfil_id"),
 
-        CONSTRAINT "usuarios_perfis_usuario_id_fkey"
+        CONSTRAINT "FK_4dd577bd5d171fce8993f12942e"
           FOREIGN KEY ("usuario_id")
           REFERENCES "usuarios"("id"),
 
-        CONSTRAINT "usuarios_perfis_perfil_id_fkey"
+        CONSTRAINT "FK_7b319d19ebb4bf71929fb10d378"
           FOREIGN KEY ("perfil_id")
           REFERENCES "perfis"("id")
       )
@@ -65,11 +65,11 @@ export class InitialSchema1790623722011 implements MigrationInterface {
         CONSTRAINT "perfis_permissoes_pkey"
           PRIMARY KEY ("perfil_id", "permissao_id"),
 
-        CONSTRAINT "perfis_permissoes_perfil_id_fkey"
+        CONSTRAINT "FK_208f03f48f1c9afdc510c762151"
           FOREIGN KEY ("perfil_id")
           REFERENCES "perfis"("id"),
 
-        CONSTRAINT "perfis_permissoes_permissao_id_fkey"
+        CONSTRAINT "FK_a533afc4951e64ea998fc06a7e5"
           FOREIGN KEY ("permissao_id")
           REFERENCES "permissoes"("id")
       )
@@ -92,7 +92,7 @@ export class InitialSchema1790623722011 implements MigrationInterface {
         CONSTRAINT "imoveis_pkey"
           PRIMARY KEY ("id"),
 
-        CONSTRAINT "imoveis_proprietario_id_fkey"
+        CONSTRAINT "FK_04c08989715e342655ed1087009"
           FOREIGN KEY ("proprietario_id")
           REFERENCES "usuarios"("id")
       )

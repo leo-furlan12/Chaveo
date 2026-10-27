@@ -1,15 +1,15 @@
-FROM node:24-slim
+FROM node:20-slim
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
-RUN npm run build
+ENV NEXT_TELEMETRY_DISABLED=1
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
