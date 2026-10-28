@@ -125,7 +125,7 @@ export default function Login() {
               Esqueci Senha
             </div>
             <div className="col-span-2 text-center">
-              <Button
+              <Button type="submit"
                 texto={carregando ? "Entrando..." : "Entrar"}
                 disabled={carregando}
               />

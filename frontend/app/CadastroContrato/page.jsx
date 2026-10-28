@@ -22,12 +22,146 @@ export default function CadastroContrato() {
   const [diaVencimento, setDiaVencimento] = useState("");
   const searchParams = useSearchParams();
   const imovelId = searchParams.get("imovelId");
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
   function alterarDespesa(despesa) {
     if (despesas.includes(despesa)) {
       setDespesas(despesas.filter((item) => item !== despesa));
     } else {
       setDespesas([...despesas, despesa]);
+    }
+  }
+  function validarContrato() {
+    if (!imovelId) {
+      alert("Nenhum imóvel foi selecionado.");
+      return false;
+    }
+
+    if (!valorAluguel || Number(valorAluguel) <= 0) {
+      alert("Informe um valor de aluguel válido.");
+      setEtapa(1);
+      return false;
+    }
+
+    if (cpfInquilino.length !== 11) {
+      alert("Informe um CPF com 11 dígitos.");
+      setEtapa(2);
+      return false;
+    }
+
+    if (!garantia) {
+      alert("Selecione uma garantia locatícia.");
+      setEtapa(3);
+      return false;
+    }
+
+    if (garantia === "caucao" && !tipoCaucao) {
+      alert("Selecione o tipo de caução.");
+      setEtapa(3);
+      return false;
+    }
+
+    if (garantia === "caucao" && tipoCaucao === "negociado") {
+      if (
+        !valorCaucao ||
+        Number(valorCaucao) <= 0 ||
+        Number(valorCaucao) > Number(valorAluguel) * 3
+      ) {
+        alert(
+          "A caução deve ser maior que zero e não ultrapassar três aluguéis.",
+        );
+        setEtapa(3);
+        return false;
+      }
+    }
+
+    if (!dataInicio || !dataFim || dataFim <= dataInicio) {
+      alert("Informe datas válidas para a locação.");
+      setEtapa(4);
+      return false;
+    }
+
+    if (
+      !diaVencimento ||
+      Number(diaVencimento) < 1 ||
+      Number(diaVencimento) > 31
+    ) {
+      alert("Informe um dia de vencimento válido.");
+      setEtapa(4);
+      return false;
+    }
+
+    return true;
+  }
+
+  async function cadastrarContrato() {
+    if (!validarContrato()) return;
+
+    setMensagem("");
+    setErro(false);
+    setCarregando(true);
+
+    try {
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        setErro(true);
+        setMensagem("Você precisa fazer login novamente.");
+        return;
+      }
+      console.log("Dados enviados:", {
+        imovel_id: imovelId,
+        despesas_inclusas: despesas,
+        garantia: garantia,
+        tipo_caucao: tipoCaucao,
+        valor_caucao: valorCaucao,
+      });
+      const resposta = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/contratos`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            imovel_id: imovelId,
+            cpf_locatario: cpfInquilino,
+            valor_aluguel: Number(valorAluguel),
+            data_inicio: dataInicio,
+            data_fim: dataFim,
+            dia_vencimento: Number(diaVencimento),
+
+            despesas_inclusas: despesas,
+            garantia: garantia,
+            tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
+            valor_caucao:
+              garantia === "caucao" && tipoCaucao === "negociado"
+                ? Number(valorCaucao)
+                : null,
+          }),
+        },
+      );
+
+      const dados = await resposta.json();
+      if (!resposta.ok) {
+        setErro(true);
+        setMensagem(
+          Array.isArray(dados.message)
+            ? dados.message.join(", ")
+            : dados.message || "Erro ao cadastrar contrato.",
+        );
+        return;
+      }
+
+      setMensagem(`Contrato cadastrado com sucesso! ID: ${dados.contrato.id}`);
+    } catch (erro) {
+      setErro(true);
+      setMensagem("Não foi possível conectar ao servidor.");
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -246,11 +380,22 @@ export default function CadastroContrato() {
                 />
               ) : (
                 <Button
-                  texto="Cadastrar contrato"
-                  onClick={() => console.log("Cadastrar contrato")}
+                  texto={carregando ? "Cadastrando..." : "Cadastrar contrato"}
+                  onClick={cadastrarContrato}
+                  disabled={carregando}
                 />
               )}
             </div>
+            {mensagem && (
+              <p
+                role={erro ? "alert" : "status"}
+                className={`text-center text-sm mt-3 ${
+                  erro ? "text-red-500" : "text-teal"
+                }`}
+              >
+                {mensagem}
+              </p>
+            )}
           </form>
         </div>
       </section>

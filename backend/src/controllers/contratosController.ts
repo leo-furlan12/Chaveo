@@ -62,7 +62,17 @@ export class ContratosController {
     }
 
     // pega os dados do aluguel
-    const { valor_aluguel, data_inicio, data_fim, dia_vencimento, cpf_locatario } = dados;
+    const {
+      valor_aluguel,
+      data_inicio,
+      data_fim,
+      dia_vencimento,
+      cpf_locatario,
+      despesas_inclusas,
+      garantia,
+      tipo_caucao,
+      valor_caucao,
+    } = dados;
 
     // verifica se todos os campos foram preenchidos
     if (
@@ -136,7 +146,58 @@ export class ContratosController {
         'O proprietário não pode ser o inquilino do próprio contrato',
       );
     }
+    // verifica as despesas selecionadas
+    const despesasPermitidas = [
+      'agua',
+      'luz',
+      'internet',
+      'gas',
+      'condominio',
+      'iptu',
+    ];
 
+    if (
+      !Array.isArray(despesas_inclusas) ||
+      !despesas_inclusas.every(
+        (despesa) => despesasPermitidas.includes(despesa)
+      )
+    ) {
+      throw new BadRequestException('Despesas inválidas');
+    }
+
+    // verifica a garantia escolhida
+    const garantiasPermitidas = ['fiador', 'seguro', 'caucao', 'nenhuma'];
+
+    if (!garantiasPermitidas.includes(garantia)) {
+      throw new BadRequestException('Garantia inválida');
+    }
+
+    // calcula o valor da caucao
+    let valorCaucaoFinal: string | null = null;
+    let tipoCaucaoFinal: string | null = null;
+
+    if (garantia === 'caucao') {
+      if (!['2', '3', 'negociado'].includes(tipo_caucao)) {
+        throw new BadRequestException('Tipo de caução inválido');
+      }
+
+      tipoCaucaoFinal = tipo_caucao;
+
+      if (tipo_caucao === 'negociado') {
+        if (
+          typeof valor_caucao !== 'number' ||
+          !Number.isFinite(valor_caucao) ||
+          valor_caucao <= 0 ||
+          valor_caucao > valor_aluguel * 3
+        ) {
+          throw new BadRequestException('Valor da caução inválido');
+        }
+
+        valorCaucaoFinal = valor_caucao.toFixed(2);
+      } else {
+        valorCaucaoFinal = (valor_aluguel * Number(tipo_caucao)).toFixed(2);
+      }
+    }
     // cria o contrato com os dados recebidos
     const contrato = this.contratoRepository.create({
       imovel_id: imovel.id,
@@ -148,6 +209,10 @@ export class ContratosController {
       data_fim: data_fim,
       dia_vencimento: dia_vencimento,
       cpf_locatario: cpf_locatario,
+      despesas_inclusas: despesas_inclusas,
+      garantia: garantia,
+      tipo_caucao: tipoCaucaoFinal,
+      valor_caucao: valorCaucaoFinal,
     });
 
     // salva o contrato no banco

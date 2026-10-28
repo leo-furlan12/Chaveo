@@ -70,4 +70,20 @@ cpf_locatario: string | null;
 
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   convite_token: string | null; //guarda codigo unico para convite
+
+  // despesas inclusas no valor do aluguel
+@Column({ type: 'simple-array', nullable: true })
+despesas_inclusas: string[] | null;
+
+// tipo de garantia do contrato
+@Column({ type: 'varchar', length: 30, nullable: true })
+garantia: string | null;
+
+// tipo de caucao escolhida
+@Column({ type: 'varchar', length: 20, nullable: true })
+tipo_caucao: string | null;
+
+// valor da caucao
+@Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+valor_caucao: string | null;
 }
