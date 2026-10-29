@@ -62,7 +62,7 @@ export default function IndexCadastro() {
       }
 
       alert('Conta criada com sucesso!');
-      window.location.href = '/';
+      window.location.href = '/login';
 
     } catch (error) {
       setErrorMessage(error.message);
