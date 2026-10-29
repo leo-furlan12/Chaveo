@@ -41,7 +41,7 @@ import { Contrato } from './database/entities/contrato.entity';
       }),
     }), 
     AuthModule,
-    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato])//forFeature registra repositorios dessas entidades 
+    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato,Prestador])//forFeature registra repositorios dessas entidades 
     //repositorio = objeto para realizar operacoes comco banco
   ],
  

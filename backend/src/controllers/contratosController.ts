@@ -2,6 +2,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Req,
   UseGuards,
@@ -34,6 +35,34 @@ export class ContratosController {
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>, //consultar usuarios no postgree
   ) { }
+
+  @Get('meus')
+  @UseGuards(AuthGuard)
+  async listarMeus(@Req() request: Request) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contratos = await this.contratoRepository.find({
+      where: { locatario_id: usuarioId },
+      relations: { imovel: { proprietario: true } },
+      order: { id: 'DESC' },
+    });
+
+    return contratos.map((contrato) => ({
+      ...contrato,
+      imovel: contrato.imovel
+        ? {
+            ...contrato.imovel,
+            proprietario: contrato.imovel.proprietario
+              ? {
+                  nome: contrato.imovel.proprietario.nome,
+                  telefone: contrato.imovel.proprietario.telefone,
+                  email: contrato.imovel.proprietario.email,
+                }
+              : null,
+          }
+        : null,
+    }));
+  }
 
   @Post()
   @UseGuards(AuthGuard) //passa pela verificação
