@@ -322,14 +322,14 @@ export default function DashboardProprietario() {
                     <span>
                       {abaAtiva === "visao-geral"
                         ? "Imóveis Recentes da Carteira"
-                        : "Catálogo Completo de Imóveis (CRUD)"}
+                        : "Catálogo Completo de Imóveis"}
                     </span>
                     <span className="section-count">
                       {imoveisFiltrados.length}
                     </span>
                   </div>
                   <p className="section-subtitle">
-                    Visualize, edite ou remova os imóveis cadastrados no PostgreSQL.
+                    Visualize, edite ou remova os imóveis cadastrados.
                   </p>
                 </div>
 
@@ -398,7 +398,7 @@ export default function DashboardProprietario() {
                         <th className="table-th">Bairro / Cidade</th>
                         <th className="table-th">Tipo</th>
                         <th className="table-th">Status</th>
-                        <th className="table-th-right">Ações (CRUD)</th>
+                        <th className="table-th-right">Ações </th>
                       </tr>
                     </thead>
                     <tbody>
