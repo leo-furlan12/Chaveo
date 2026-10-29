@@ -8,6 +8,7 @@ import {
 
 import { Usuario } from './usuario.entity';
 
+
 @Entity('imoveis')
 export class Imovel {
   @PrimaryGeneratedColumn({ type: 'bigint' })

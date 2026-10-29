@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Checkbox from "../components/Checkbox";
 import Radio from "../components/Radio";
 import { ArrowLeft, ArrowRight } from "lucide-react";
@@ -25,12 +24,40 @@ export default function CadastroContrato() {
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const [contratoId, setContratoId] = useState(null);
+const [contratoId, setContratoId] = useState(
+  searchParams.get("contratoId")
+);
   const [conviteToken, setConviteToken] = useState("");
+  const [statusContrato, setStatusContrato] = useState("");
   const [gerandoConvite, setGerandoConvite] = useState(false);
+  const [indiceReajuste, setIndiceReajuste] = useState("");
+  const [imovel, setImovel] = useState(null);
+
+  useEffect(() => {
+    if (!imovelId) return;
+
+    async function buscarImovel() {
+      try {
+        const resposta = await fetch(
+          `http://localhost:4000/api/imoveis/${imovelId}`,
+        );
+
+        if (!resposta.ok) {
+          throw new Error("Erro ao buscar imóvel");
+        }
+
+        const dados = await resposta.json();
+        setImovel(dados);
+      } catch (erro) {
+        console.error("Erro ao carregar imóvel:", erro);
+      }
+    }
+
+    buscarImovel();
+  }, [imovelId]);
 
   const linkConvite = conviteToken
-    ? `${window.location.origin}/contratos/convite?token=${conviteToken}`
+    ? `${window.location.origin}/ConviteContrato?token=${conviteToken}`
     : "";
 
   function alterarDespesa(despesa) {
@@ -43,6 +70,12 @@ export default function CadastroContrato() {
   function validarContrato() {
     if (!imovelId) {
       alert("Nenhum imóvel foi selecionado.");
+      return false;
+    }
+    // verifica se o indice de reajuste foi escolhido
+    if (!["IPCA", "IGP-M", "INCC"].includes(indiceReajuste)) {
+      alert("Selecione um índice de reajuste.");
+      setEtapa(1);
       return false;
     }
 
@@ -140,7 +173,7 @@ export default function CadastroContrato() {
             data_inicio: dataInicio,
             data_fim: dataFim,
             dia_vencimento: Number(diaVencimento),
-
+            indice_reajuste: indiceReajuste,
             despesas_inclusas: despesas,
             garantia: garantia,
             tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
@@ -175,7 +208,7 @@ export default function CadastroContrato() {
   }
 
   async function gerarConvite(id) {
-  if (!id) return;
+    if (!id) return;
 
     setGerandoConvite(true);
     setMensagem("");
@@ -219,7 +252,7 @@ export default function CadastroContrato() {
   }
 
   async function copiarConvite() {
-    const link = `${window.location.origin}/contratos/convite?token=${conviteToken}`;
+    const link = `${window.location.origin}/ConviteContrato?token=${conviteToken}`;
 
     try {
       await navigator.clipboard.writeText(link);
@@ -230,7 +263,41 @@ export default function CadastroContrato() {
     }
   }
 
-  if (conviteToken) {
+useEffect(() => {
+  if (!contratoId)  return;
+
+    async function verificarStatus() {
+      try {
+       const token = sessionStorage.getItem("token");
+        if (!token) return;
+
+        const resposta = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/contratos/${contratoId}/dados`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!resposta.ok) return;
+
+        const dados = await resposta.json();
+        setStatusContrato(dados.status);
+      } catch (erro) {
+        console.error("Erro ao verificar status:", erro);
+      }
+    }
+
+    verificarStatus();
+
+    // verifica novamente a cada 5 segundos
+    const intervalo = setInterval(verificarStatus, 5000);
+
+    return () => clearInterval(intervalo);
+  }, [contratoId]);
+
+  if (conviteToken || contratoId) {
     return (
       <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
         <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
@@ -247,23 +314,68 @@ export default function CadastroContrato() {
 
           <div className="flex gap-2">
             <div className="h-2 flex-1 bg-teal rounded-full"></div>
-            <div className="h-2 flex-1 bg-teal rounded-full"></div>
+
+            <div
+              className={`h-2 flex-1 rounded-full ${
+                statusContrato === "AGUARDANDO_REVISAO" ||
+                statusContrato === "AGUARDANDO_ASSINATURAS" ||
+                statusContrato === "CONCLUIDO"
+                  ? "bg-teal"
+                  : "bg-gray-300"
+              }`}
+            ></div>
+
             <div className="h-2 flex-1 bg-gray-300 rounded-full"></div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-3 text-xs text-center">
             <p>✓ Proprietário</p>
-            <p className="font-bold">Aguardando inquilino</p>
+
+            <p className="font-bold">
+              {statusContrato === "AGUARDANDO_REVISAO" ||
+              statusContrato === "AGUARDANDO_ASSINATURAS" ||
+              statusContrato === "CONCLUIDO"
+                ? "✓ Inquilino concluiu"
+                : statusContrato === "PENDENTE_DADOS"
+                  ? "Inquilino preenchendo"
+                  : "Aguardando inquilino"}
+            </p>
+
             <p>Finalização</p>
           </div>
 
-          <h2 className="font-bold mt-8">Convite para o inquilino</h2>
+          {statusContrato === "AGUARDANDO_REVISAO" && (
+            <div className="mt-6">
+              <p className="text-sm text-center mb-3">
+                O inquilino concluiu o preenchimento. Agora você pode revisar o
+                contrato.
+              </p>
 
-          <p className="text-sm mt-2 mb-4">
-            Copie o link e envie para o inquilino continuar o cadastro.
-          </p>
+              <a
+                href={`/RevisarContrato?id=${contratoId}`}
+                className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
+              >
+                Revisar contrato
+              </a>
+            </div>
+          )}
 
-          <Button texto="Copiar link do convite" onClick={copiarConvite} />
+          
+{conviteToken && statusContrato !== "AGUARDANDO_REVISAO" && (
+  <div>
+    <h2 className="font-bold mt-8">Convite para o inquilino</h2>
+
+    <p className="text-sm mt-2 mb-4">
+      Copie o link e envie para o inquilino continuar o cadastro.
+    </p>
+
+    <Button
+      texto="Copiar link do convite"
+      onClick={copiarConvite}
+    />
+  </div>
+)}
+
 
           {mensagem && (
             <p
@@ -283,6 +395,47 @@ export default function CadastroContrato() {
     <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-slate-darker flex flex-col">
       <section className="flex justify-center content-center ">
         <div className="w-100  bg-paper p-7 br-2 rounded-xl  ">
+          {/* informações do imóvel selecionado */}
+          <div className="mb-6 rounded-lg border border-slate-300 bg-slate-50 p-4">
+            <h2 className="font-display font-bold text-lg mb-3">
+              Imóvel selecionado
+            </h2>
+
+            {imovel ? (
+              <div className="text-sm space-y-2">
+                <p>
+                  <strong>Tipo:</strong> {imovel.tipo}
+                </p>
+
+                <p>
+                  <strong>Endereço:</strong> {imovel.logradouro},{" "}
+                  {imovel.numero}
+                  {imovel.complemento ? ` - ${imovel.complemento}` : ""}
+                </p>
+
+                <p>
+                  <strong>Bairro:</strong> {imovel.bairro}
+                </p>
+
+                <p>
+                  <strong>Cidade:</strong> {imovel.cidade}/{imovel.estado}
+                </p>
+
+                <p>
+                  <strong>CEP:</strong> {imovel.cep}
+                </p>
+
+                <p>
+                  <strong>Situação:</strong> {imovel.status}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Carregando informações do imóvel...
+              </p>
+            )}
+          </div>
+
           <div className="mb-6">
             <p>Etapa {etapa} de 4</p>
 
@@ -306,6 +459,25 @@ export default function CadastroContrato() {
                   onChange={(e) => setValorAluguel(e.target.value)}
                   className="bg-slate/10 p-3 rounded-lg w-full h-10"
                 />
+                <div className="mt-4 mb-4">
+                  <h1 className={titulo}>Índice de reajuste anual:</h1>
+
+                  <select
+                    value={indiceReajuste}
+                    onChange={(e) => setIndiceReajuste(e.target.value)}
+                    className="bg-slate/10 p-3 rounded-lg w-full h-10"
+                  >
+                    <option value="">Selecione o índice</option>
+                    <option value="IPCA">IPCA</option>
+                    <option value="IGP-M">IGP-M</option>
+                    <option value="INCC">INCC</option>
+                  </select>
+
+                  <p className="text-sm mt-2">
+                    O índice escolhido será utilizado para o reajuste anual do
+                    aluguel, quando aplicável.
+                  </p>
+                </div>
                 <h1 className={titulo}>Despesas Inclusas:</h1>
                 <Checkbox
                   texto="Água"

@@ -86,4 +86,34 @@ tipo_caucao: string | null;
 // valor da caucao
 @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
 valor_caucao: string | null;
+
+  // dados do fiador
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  fiador_nome: string | null;
+
+  @Column({ type: 'varchar', length: 11, nullable: true })
+  fiador_cpf: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  fiador_qualificacao: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  fiador_imovel: string | null;
+
+  // dados do seguro fianca
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  seguro_seguradora: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  seguro_apolice: string | null;
+
+  // indice escolhido para reajustar o aluguel
+@Column({ type: 'varchar', length: 10, nullable: true })
+indice_reajuste: string | null;
+
+// caminho do pdf assinado enviado pelo proprietario
+@Column({ type: 'varchar', length: 255, nullable: true })
+pdf_assinado_path: string | null;
 }
+
+
