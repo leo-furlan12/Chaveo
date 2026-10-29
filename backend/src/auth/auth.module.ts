@@ -19,6 +19,7 @@ import { JwtModule } from '@nestjs/jwt';//biblioteca de token
     //usar repositorio da entidade usuario
     controllers: [AuthController], //controllers recebe requisições http
     providers: [AuthService],//providers recebe logicas
+    exports: [JwtModule], //permite outros arquivos usam esse serviço
 })
 export class AuthModule {
 

@@ -8,6 +8,7 @@ import {
 
 import { Usuario } from './usuario.entity';
 
+
 @Entity('imoveis')
 export class Imovel {
   @PrimaryGeneratedColumn({ type: 'bigint' })
@@ -41,8 +42,8 @@ export class Imovel {
   @Column({ type: 'char', length: 2 })
   estado: string;
 
-  @Column({ type: 'varchar', length: 50 })
-  tipo: string;
+  @Column({ name: 'tipo_imovel', type: 'varchar', length: 50 })
+tipo: string;
 
   @Column({ type: 'varchar', length: 20 })
   status: string;

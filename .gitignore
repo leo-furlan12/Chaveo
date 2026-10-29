@@ -1,1 +1,25 @@
+# variaveis de ambiente
 .env
+.env.*
+!.env.example
+
+# dependencias
+node_modules/
+**/node_modules/
+node_modules_backup/
+**/node_modules_backup/
+
+# arquivos gerados
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+
+# logs
+*.log
+
+# arquivos do sistema
+.DS_Store
+
+# arquivos enviados
+uploads/
