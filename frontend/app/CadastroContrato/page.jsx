@@ -25,6 +25,13 @@ export default function CadastroContrato() {
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [contratoId, setContratoId] = useState(null);
+  const [conviteToken, setConviteToken] = useState("");
+  const [gerandoConvite, setGerandoConvite] = useState(false);
+
+  const linkConvite = conviteToken
+    ? `${window.location.origin}/contratos/convite?token=${conviteToken}`
+    : "";
 
   function alterarDespesa(despesa) {
     if (despesas.includes(despesa)) {
@@ -157,6 +164,8 @@ export default function CadastroContrato() {
       }
 
       setMensagem(`Contrato cadastrado com sucesso! ID: ${dados.contrato.id}`);
+      await gerarConvite(dados.contrato.id);
+      setContratoId(dados.contrato.id);
     } catch (erro) {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
@@ -165,6 +174,111 @@ export default function CadastroContrato() {
     }
   }
 
+  async function gerarConvite(id) {
+  if (!id) return;
+
+    setGerandoConvite(true);
+    setMensagem("");
+    setErro(false);
+
+    try {
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        setErro(true);
+        setMensagem("Você precisa fazer login novamente.");
+        return;
+      }
+
+      const resposta = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/contratos/${id}/convite`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        setErro(true);
+        setMensagem(dados.message || "Erro ao gerar convite.");
+        return;
+      }
+
+      setConviteToken(dados.convite_token);
+      setMensagem("Convite gerado com sucesso!");
+    } catch (erro) {
+      setErro(true);
+      setMensagem("Não foi possível conectar ao servidor.");
+    } finally {
+      setGerandoConvite(false);
+    }
+  }
+
+  async function copiarConvite() {
+    const link = `${window.location.origin}/contratos/convite?token=${conviteToken}`;
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setMensagem("Link copiado com sucesso!");
+    } catch {
+      setErro(true);
+      setMensagem("Não foi possível copiar o link.");
+    }
+  }
+
+  if (conviteToken) {
+    return (
+      <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
+        <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
+          <h1 className="font-display text-2xl font-bold text-center">
+            Contrato cadastrado!
+          </h1>
+
+          <p className="text-center mt-3">
+            O cadastro do proprietário foi concluído. Agora estamos aguardando o
+            inquilino.
+          </p>
+
+          <h2 className="font-bold mt-8 mb-3">Progresso do contrato</h2>
+
+          <div className="flex gap-2">
+            <div className="h-2 flex-1 bg-teal rounded-full"></div>
+            <div className="h-2 flex-1 bg-teal rounded-full"></div>
+            <div className="h-2 flex-1 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-3 text-xs text-center">
+            <p>✓ Proprietário</p>
+            <p className="font-bold">Aguardando inquilino</p>
+            <p>Finalização</p>
+          </div>
+
+          <h2 className="font-bold mt-8">Convite para o inquilino</h2>
+
+          <p className="text-sm mt-2 mb-4">
+            Copie o link e envie para o inquilino continuar o cadastro.
+          </p>
+
+          <Button texto="Copiar link do convite" onClick={copiarConvite} />
+
+          {mensagem && (
+            <p
+              role={erro ? "alert" : "status"}
+              className={`text-center text-sm mt-3 ${
+                erro ? "text-red-500" : "text-teal"
+              }`}
+            >
+              {mensagem}
+            </p>
+          )}
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-slate-darker flex flex-col">
       <section className="flex justify-center content-center ">
@@ -395,6 +509,30 @@ export default function CadastroContrato() {
               >
                 {mensagem}
               </p>
+            )}
+            {contratoId && !conviteToken && (
+              <div className="mt-4">
+                <Button
+                  texto={
+                    gerandoConvite ? "Gerando convite..." : "Gerar convite"
+                  }
+                  onClick={gerarConvite}
+                  disabled={gerandoConvite}
+                />
+              </div>
+            )}
+            {conviteToken && (
+              <div className="mt-4">
+                <p className="font-bold">Convite gerado!</p>
+                <p className="text-sm">
+                  Envie o link para o inquilino indicado no contrato.
+                </p>
+
+                <Button
+                  texto="Copiar link do convite"
+                  onClick={copiarConvite}
+                />
+              </div>
             )}
           </form>
         </div>
