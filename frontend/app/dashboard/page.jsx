@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Home,
@@ -16,16 +17,19 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  Lock,
 } from "lucide-react";
 import "./style.css";
 
 export default function DashboardProprietario() {
+  const router = useRouter();
   const [abaAtiva, setAbaAtiva] = useState("visao-geral");
   const [imoveis, setImoveis] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [filtroTipo, setFiltroTipo] = useState("TODOS");
+  const [avisoRegra, setAvisoRegra] = useState("");
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -50,6 +54,38 @@ export default function DashboardProprietario() {
   useEffect(() => {
     carregarImoveis();
   }, []);
+
+  // AÇÃO: Excluir imóvel direto
+  const excluirImovel = async (id) => {
+    try {
+      const resposta = await fetch(`${apiUrl}/api/imoveis/${id}`, {
+        method: "DELETE",
+      });
+
+      if (resposta.ok) {
+        setImoveis((listaAtual) =>
+          listaAtual.filter((item) => String(item.id) !== String(id))
+        );
+      } else {
+        const erroDados = await resposta.json().catch(() => ({}));
+        setAvisoRegra(erroDados.mensagem || "Não foi possível excluir o imóvel.");
+      }
+    } catch (erro) {
+      console.error("Erro ao excluir imóvel:", erro);
+      setAvisoRegra("Erro de conexão ao tentar excluir o imóvel.");
+    }
+  };
+
+  // AÇÃO: Redirecionar para edição (respeitando a Regra de Negócio)
+  const irParaEdicao = (imovel) => {
+    if (imovel.status?.toUpperCase() === "ALUGADO") {
+      setAvisoRegra(
+        `Bloqueado: O imóvel #${imovel.id} (${imovel.logradouro}, ${imovel.numero}) está com status ALUGADO e suas informações não podem ser alteradas.`
+      );
+      return;
+    }
+    router.push(`/imoveis/cadastro?id=${imovel.id}`);
+  };
 
   // Cálculos dinâmicos dos Cards
   const totalImoveis = imoveis.length;
@@ -207,6 +243,19 @@ export default function DashboardProprietario() {
 
         {/* CONTEÚDO DINÂMICO */}
         <div className="content-body">
+          {/* ALERTA DE REGRA DE NEGÓCIO */}
+          {avisoRegra && (
+            <div className="rule-alert">
+              <span>{avisoRegra}</span>
+              <button
+                onClick={() => setAvisoRegra("")}
+                className="rule-alert-close"
+              >
+                Fechar
+              </button>
+            </div>
+          )}
+
           {/* BLOCOS DE RESUMO (CARDS) */}
           {abaAtiva === "visao-geral" && (
             <section className="stats-grid">
@@ -316,6 +365,7 @@ export default function DashboardProprietario() {
                     <option value="TODOS">Todos os Tipos</option>
                     <option value="APARTAMENTO">Apartamento</option>
                     <option value="CASA">Casa</option>
+                    <option value="KITNET">Kitnet</option>
                     <option value="COMERCIAL">Comercial</option>
                     <option value="TERRENO">Terreno</option>
                   </select>
@@ -352,68 +402,81 @@ export default function DashboardProprietario() {
                       </tr>
                     </thead>
                     <tbody>
-                      {imoveisFiltrados.map((imovel) => (
-                        <tr key={imovel.id} className="table-row">
-                          <td className="table-td">#{imovel.id}</td>
-                          <td className="table-td">
-                            <p className="address-primary">
-                              {imovel.logradouro}, {imovel.numero}
-                            </p>
-                            <p className="address-secondary">
-                              {imovel.complemento
-                                ? `${imovel.complemento} • CEP: ${imovel.cep}`
-                                : `CEP: ${imovel.cep}`}
-                            </p>
-                          </td>
-                          <td className="table-td">
-                            <p className="address-primary">{imovel.bairro}</p>
-                            <p className="address-secondary">
-                              {imovel.cidade} - {imovel.estado}
-                            </p>
-                          </td>
-                          <td className="table-td">
-                            <span className="type-tag">
-                              {imovel.tipo || imovel.tipo_imovel || "Imóvel"}
-                            </span>
-                          </td>
-                          <td className="table-td">
-                            {renderizarBadgeStatus(imovel.status)}
-                          </td>
-                          <td className="actions-cell">
-                            <button
-                              className="action-btn-view"
-                              title="Ver Detalhes"
-                              onClick={() =>
-                                alert(`Detalhes do imóvel #${imovel.id}`)
-                              }
-                            >
-                              <Eye size={17} />
-                            </button>
-                            <button
-                              className="action-btn-edit"
-                              title="Editar Imóvel"
-                              onClick={() =>
-                                alert(
-                                  `Vamos conectar a edição do imóvel #${imovel.id} no próximo passo!`
-                                )
-                              }
-                            >
-                              <Edit3 size={17} />
-                            </button>
-                            <button
-                              className="action-btn-delete"
-                              title="Excluir Imóvel"
-                              onClick={() =>
-                                alert(
-                                  `Vamos conectar a exclusão do imóvel #${imovel.id} no próximo passo!`
-                                )
-                              }
-                            >
-                              <Trash2 size={17} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {imoveisFiltrados.map((imovel) => {
+                        const estaAlugado =
+                          imovel.status?.toUpperCase() === "ALUGADO";
+
+                        return (
+                          <tr key={imovel.id} className="table-row">
+                            <td className="table-td">#{imovel.id}</td>
+                            <td className="table-td">
+                              <p className="address-primary">
+                                {imovel.logradouro}, {imovel.numero}
+                              </p>
+                              <p className="address-secondary">
+                                {imovel.complemento
+                                  ? `${imovel.complemento} • CEP: ${imovel.cep}`
+                                  : `CEP: ${imovel.cep}`}
+                              </p>
+                            </td>
+                            <td className="table-td">
+                              <p className="address-primary">{imovel.bairro}</p>
+                              <p className="address-secondary">
+                                {imovel.cidade} - {imovel.estado}
+                              </p>
+                            </td>
+                            <td className="table-td">
+                              <span className="type-tag">
+                                {imovel.tipo || imovel.tipo_imovel || "Imóvel"}
+                              </span>
+                            </td>
+                            <td className="table-td">
+                              {renderizarBadgeStatus(imovel.status)}
+                            </td>
+                            <td className="actions-cell">
+                              <button
+                                className="action-btn-view"
+                                title="Ver Detalhes"
+                                onClick={() =>
+                                  setAvisoRegra(
+                                    `Imóvel #${imovel.id}: ${imovel.logradouro}, ${imovel.numero} (${imovel.bairro} - ${imovel.cidade}/${imovel.estado}) | Status: ${imovel.status}`
+                                  )
+                                }
+                              >
+                                <Eye size={17} />
+                              </button>
+
+                              <button
+                                className={
+                                  estaAlugado
+                                    ? "action-btn-disabled"
+                                    : "action-btn-edit"
+                                }
+                                title={
+                                  estaAlugado
+                                    ? "Imóvel alugado não pode ser editado"
+                                    : "Editar Imóvel"
+                                }
+                                onClick={() => irParaEdicao(imovel)}
+                              >
+                                {estaAlugado ? (
+                                  <Lock size={17} />
+                                ) : (
+                                  <Edit3 size={17} />
+                                )}
+                              </button>
+
+                              <button
+                                className="action-btn-delete"
+                                title="Excluir Imóvel"
+                                onClick={() => excluirImovel(imovel.id)}
+                              >
+                                <Trash2 size={17} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
