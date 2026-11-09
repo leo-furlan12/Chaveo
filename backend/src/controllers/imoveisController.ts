@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Res,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Get, Param, Patch, Delete, Body, Param, Res, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,7 +9,7 @@ export class ImoveisController {
   constructor(
     @InjectRepository(Imovel)
     private readonly imovelRepository: Repository<Imovel>,
-  ) {}
+  ) { }
 
   // 1. Rota GET para listar todos os imóveis na Dashboard
   @Get()
@@ -80,7 +70,34 @@ export class ImoveisController {
     }
   }
 
-  // 4. Rota PATCH para editar o imóvel (COM REGRA DE NEGÓCIO)
+  @Get(':id')
+  async buscarPorId(@Param('id') id: string, @Res() res: Response) {
+    try {
+      // busca o imóvel pelo id
+      const imovel = await this.imovelRepository.findOne({
+        where: { id: id },
+      });
+
+      // verifica se o imóvel existe
+      if (!imovel) {
+
+        return res.status(HttpStatus.NOT_FOUND).json({
+          mensagem: 'Imóvel não encontrado.',
+        });
+      }
+      // retorna os dados do imóvel
+      return res.status(HttpStatus.OK).json(imovel);
+    } catch (erro) {
+      console.error('Erro ao buscar imóvel:', erro);
+
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        mensagem: 'Erro ao buscar imóvel.',
+      });
+    }
+  }
+
+  
+    // 4. Rota PATCH para editar o imóvel (COM REGRA DE NEGÓCIO)
   @Patch(':id')
   async atualizar(
     @Param('id') id: string,
@@ -93,11 +110,10 @@ export class ImoveisController {
       });
 
       if (!imovelExistente) {
-        return res.status(HttpStatus.NOT_FOUND).json({
+         return res.status(HttpStatus.NOT_FOUND).json({
           mensagem: 'Imóvel não encontrado.',
         });
       }
-
       // REGRA DE NEGÓCIO: Proibido alterar dados se o imóvel estiver ALUGADO
       if (imovelExistente.status?.toUpperCase() === 'ALUGADO') {
         return res.status(HttpStatus.FORBIDDEN).json({

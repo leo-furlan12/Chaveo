@@ -2,14 +2,17 @@
 
 import Logo from "../components/Logo";
 import Checkbox from "../components/Checkbox";
-import Button from "./Button";
+import Button from "../components/Button";
 import { useState } from "react";
-import { useRouter } from "next/navigation"; //rota
+import { useRouter, useSearchParams } from "next/navigation";//rota
+
 
 //funções login/conexão com backend :
 
 export default function Login() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+const redirect = searchParams.get("redirect");
   const [cpf, setCpf] = useState("");
   //setCpf = função usada para alterar o cpf, eu quero morrer
   //cpf = valor atual
@@ -77,7 +80,7 @@ export default function Login() {
       //final da verificação
       setCarregando(false); //carregando guarda valor de true ou false, aqui carregando é false
     }
-}
+  }
   return (
     <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-paper flex flex-col">
       <header>
@@ -137,7 +140,7 @@ export default function Login() {
               Esqueci Senha
             </div>
             <div className="col-span-2 text-center">
-              <Button
+              <Button type="submit"
                 texto={carregando ? "Entrando..." : "Entrar"}
                 disabled={carregando}
               />
