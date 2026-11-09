@@ -48,7 +48,9 @@ export default function Homepage() {
           <Link href="/cadastro" className="item-menu">
             Cadastre-se
           </Link>
-          <a href="#" className="botao-login">Login</a>
+          <Link href="/login" className="botao-login">
+            Login
+          </Link>
         </nav>
       </header>
 
