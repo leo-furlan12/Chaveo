@@ -40,9 +40,20 @@ export class AuthService {
     if (!senhaValida) {
       throw new UnauthorizedException('CPF ou senha inválidos');
     }
+
+    const perfis = await this.usuarioRepository.manager.query(
+      `SELECT p.nome
+       FROM usuarios_perfis up
+       INNER JOIN perfis p ON p.id = up.perfil_id
+       WHERE up.usuario_id = $1
+       ORDER BY up.perfil_id`,
+      [usuario.id],
+    ) as Array<{ nome: string }>;
+
     const payload = {
       sub: usuario.id, //jwt carrega claims
       //sub = subject = usado para identificar de quem é o token
+      perfis: perfis.map((perfil) => perfil.nome),
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -50,6 +61,7 @@ export class AuthService {
     return {
       message: 'Login realizado com sucesso',
       access_token: accessToken,
+      perfis: perfis.map((perfil) => perfil.nome),
     };
   }
 

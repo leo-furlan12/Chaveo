@@ -1,0 +1,658 @@
+.tenant-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background: #14171f;
+  color: #f1f5f9;
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.tenant-sidebar {
+  width: 16rem;
+  background: #1a1e29;
+  border-right: 1px solid rgb(30 41 59 / 0.8);
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tenant-brand {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(30 41 59 / 0.8);
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.tenant-brand-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgb(0 217 181 / 0.4);
+  border-radius: 0.5rem;
+  background: rgb(0 217 181 / 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00d9b5;
+}
+
+.tenant-brand-dot {
+  color: #00d9b5;
+}
+
+.tenant-navigation {
+  padding: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tenant-nav-item,
+.tenant-nav-active {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 150ms ease;
+}
+
+.tenant-nav-item {
+  color: #94a3b8;
+}
+
+.tenant-nav-item:hover {
+  background: rgb(30 41 59 / 0.5);
+  color: white;
+}
+
+.tenant-nav-active {
+  border: 1px solid rgb(0 217 181 / 0.3);
+  background: rgb(0 217 181 / 0.1);
+  color: #00d9b5;
+  font-weight: 600;
+}
+
+.tenant-user {
+  padding: 1rem;
+  border-top: 1px solid rgb(30 41 59 / 0.8);
+  background: #161922;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tenant-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border: 1px solid #00d9b5;
+  border-radius: 9999px;
+  background: rgb(0 217 181 / 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00d9b5;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.tenant-user-data {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tenant-user-data strong {
+  overflow: hidden;
+  color: white;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-user-data span {
+  color: #00d9b5;
+  font-size: 0.75rem;
+}
+
+.tenant-logout {
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.tenant-logout:hover {
+  background: rgb(244 63 94 / 0.1);
+  color: #fb7185;
+}
+
+.tenant-main {
+  min-width: 0;
+  max-height: 100vh;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tenant-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 2rem;
+  border-bottom: 1px solid rgb(30 41 59 / 0.8);
+  background: rgb(20 23 31 / 0.9);
+  backdrop-filter: blur(12px);
+}
+
+.tenant-eyebrow,
+.tenant-card-kicker {
+  color: #00d9b5;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tenant-header h1 {
+  margin: 0.5rem 0 0;
+  color: white;
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.tenant-subtitle {
+  margin-top: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.tenant-refresh {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.tenant-refresh:hover {
+  border-color: rgb(0 217 181 / 0.5);
+  color: #00d9b5;
+}
+
+.tenant-alert {
+  margin: 1.5rem 2rem 0;
+  padding: 1rem;
+  border: 1px solid rgb(244 63 94 / 0.4);
+  border-radius: 0.75rem;
+  background: rgb(244 63 94 / 0.1);
+  color: #fda4af;
+  font-size: 0.875rem;
+}
+
+.tenant-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  padding: 2rem 2rem 0;
+}
+
+.tenant-summary-card {
+  position: relative;
+  padding: 1.25rem;
+  border: 1px solid rgb(30 41 59 / 0.9);
+  border-radius: 0.75rem;
+  background: #1a1e29;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+}
+
+.tenant-summary-card span {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.tenant-summary-card strong {
+  display: block;
+  margin-top: 0.75rem;
+  color: white;
+  font-size: 1.25rem;
+}
+
+.tenant-summary-card svg {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  color: #00d9b5;
+}
+
+.tenant-content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.tenant-preview-card {
+  padding: 1.5rem;
+  border: 1px solid rgb(30 41 59 / 0.9);
+  border-radius: 0.75rem;
+  background: #1a1e29;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+}
+
+.tenant-records {
+  padding: 2rem;
+}
+
+.tenant-records-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.tenant-records-heading h2 {
+  margin-top: 0.35rem;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.tenant-records-heading p:last-child {
+  margin-top: 0.4rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.tenant-record-count {
+  flex-shrink: 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgb(0 217 181 / 0.3);
+  border-radius: 9999px;
+  background: rgb(0 217 181 / 0.1);
+  color: #00d9b5;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tenant-record-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.tenant-record-card {
+  padding: 1.25rem;
+  border: 1px solid rgb(30 41 59 / 0.9);
+  border-radius: 0.75rem;
+  background: #1a1e29;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+}
+
+.tenant-record-property {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.tenant-record-property-icon {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgb(0 217 181 / 0.1);
+  color: #00d9b5;
+}
+
+.tenant-record-property-info {
+  min-width: 0;
+}
+
+.tenant-record-property-info h3 {
+  overflow-wrap: anywhere;
+}
+
+.tenant-property-details {
+  margin-left: 4rem;
+}
+
+.tenant-record-contracts {
+  margin: 1.25rem 0 0 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid #263244;
+}
+
+.tenant-record-contracts h4 {
+  margin-bottom: 0.75rem;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.tenant-record-contract {
+  padding: 0.75rem;
+  border: 1px solid #263244;
+  border-radius: 0.625rem;
+  background: #14171f;
+}
+
+.tenant-record-contract + .tenant-record-contract {
+  margin-top: 0.75rem;
+}
+
+.tenant-record-contract-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tenant-record-contract-summary > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tenant-record-contract-label {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.tenant-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.tenant-card-heading h2 {
+  margin-top: 0.25rem;
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.tenant-heading-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.property-icon {
+  background: rgb(0 217 181 / 0.1);
+  color: #00d9b5;
+}
+
+.contract-icon {
+  background: rgb(168 85 247 / 0.1);
+  color: #d8b4fe;
+}
+
+.tenant-property-illustration {
+  height: 8rem;
+  margin-bottom: 1.25rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #0b4a41, #1d212c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00d9b5;
+}
+
+.tenant-property-type {
+  color: #00d9b5;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tenant-preview-card h3 {
+  margin-top: 0.5rem;
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.tenant-muted {
+  margin-top: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.tenant-more-button {
+  width: 100%;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border: 0;
+  border-top: 1px solid #1e293b;
+  background: transparent;
+  color: #00d9b5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.tenant-more-button:hover {
+  color: white;
+}
+
+.tenant-more-button.tenant-record-toggle {
+  width: auto;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+}
+
+.tenant-more-button.tenant-record-toggle:hover {
+  border-color: rgb(0 217 181 / 0.5);
+  color: #00d9b5;
+}
+
+.tenant-contract-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tenant-contract-status span {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.status-ativo {
+  border: 1px solid rgb(16 185 129 / 0.3);
+  background: rgb(16 185 129 / 0.15);
+  color: #6ee7b7;
+}
+
+.status-pendente {
+  border: 1px solid rgb(245 158 11 / 0.3);
+  background: rgb(245 158 11 / 0.15);
+  color: #fcd34d;
+}
+
+.tenant-contract-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.tenant-contract-main span,
+.tenant-contract-dates span,
+.tenant-detail-list span {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.tenant-contract-main strong {
+  color: white;
+  font-size: 1.25rem;
+}
+
+.tenant-contract-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.tenant-contract-dates strong {
+  display: block;
+  margin-top: 0.5rem;
+  color: white;
+  font-size: 0.875rem;
+}
+
+.tenant-detail-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #14171f;
+}
+
+.tenant-detail-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-align: right;
+}
+
+.tenant-detail-list strong {
+  color: white;
+  font-size: 0.875rem;
+}
+
+.tenant-empty {
+  margin: 2rem;
+  padding: 4rem;
+  border: 1px dashed #334155;
+  border-radius: 0.75rem;
+  background: #1a1e29;
+  color: #64748b;
+  text-align: center;
+}
+
+.tenant-empty h2 {
+  margin-top: 1rem;
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.tenant-empty p {
+  max-width: 28rem;
+  margin: 0.5rem auto 0;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.tenant-loading-icon {
+  display: block;
+  margin: 0 auto;
+  color: #00d9b5;
+  animation: tenant-spin 1s linear infinite;
+}
+
+@keyframes tenant-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .tenant-sidebar {
+    display: none;
+  }
+
+  .tenant-header,
+  .tenant-summary-grid,
+  .tenant-content-grid,
+  .tenant-records {
+    padding: 1.25rem;
+  }
+
+  .tenant-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tenant-alert,
+  .tenant-empty {
+    margin-right: 1.25rem;
+    margin-left: 1.25rem;
+  }
+
+  .tenant-summary-grid,
+  .tenant-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-records-heading,
+  .tenant-record-property,
+  .tenant-record-contract-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tenant-record-property {
+    display: flex;
+  }
+
+  .tenant-record-property-info {
+    width: 100%;
+  }
+
+  .tenant-record-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tenant-property-details,
+  .tenant-record-contracts {
+    margin-left: 0;
+  }
+}

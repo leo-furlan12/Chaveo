@@ -31,9 +31,10 @@ const redirect = searchParams.get("redirect");
     setMensagem("");
     setErro(false);
     setCarregando(true);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
     try {
       const resposta = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`, //await = esperar respostas
+          'http://localhost:4000/api/auth/login', //await = esperar respostas
         {
           method: "POST", //metodo de envio de dados a backend por HTTP
           headers: {
@@ -41,7 +42,7 @@ const redirect = searchParams.get("redirect");
           },
           body: JSON.stringify({
             //javaScript que transforma cpf e senha em arquivo json
-            cpf: cpf,
+            cpf: cpf.replace(/\D/g, ""),
             senha: senha,
           }),
         },
@@ -49,6 +50,7 @@ const redirect = searchParams.get("redirect");
 
       const dados = await resposta.json(); //pega resultados da função await resposta
 
+      
       if (!resposta.ok) {
         //compara resultado de "resposta"(200 - correto 401-erro)
         setErro(true);
@@ -59,12 +61,17 @@ const redirect = searchParams.get("redirect");
 
       setMensagem("Login realizado com sucesso!");
 
-     const destino =
-  redirect?.startsWith("/") && !redirect.startsWith("//")
-    ? redirect
-    : "/dashboardteste";
+      const perfis = Array.isArray(dados.perfis)
+        ? dados.perfis.map((perfil) => perfil.toUpperCase())
+        : [];
 
-router.replace(destino); 
+      if (perfis.includes("INQUILINO")) {
+        router.replace("/dashboardInquilino");
+      } else if (perfis.includes("PROPRIETARIO")) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/dashboardteste");
+      }
     } catch (erro) {
       //caso de erro
       setErro(true);
