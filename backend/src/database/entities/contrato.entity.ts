@@ -114,6 +114,59 @@ indice_reajuste: string | null;
 // caminho do pdf assinado enviado pelo proprietario
 @Column({ type: 'varchar', length: 255, nullable: true })
 pdf_assinado_path: string | null;
-}
 
+@Column({
+    name: 'renda_mensal_locatario',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  renda_mensal_locatario: number | null;
+
+  @Column({
+    name: 'ocupacao_locatario',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  ocupacao_locatario: string | null;
+
+  @Column({
+    name: 'documentos_locatario',
+    type: 'jsonb',
+    nullable: true,
+    default: () => "'[]'",
+  })
+  documentos_locatario: Array<{
+    tipo: string;
+    nome_original: string;
+    arquivo: string;
+    mimetype: string;
+  }> | null;
+
+  @Column({
+    name: 'status_analise_cadastral',
+    type: 'varchar',
+    length: 30,
+    default: 'PENDENTE',
+  })
+  status_analise_cadastral: string;
+
+  @Column({
+    name: 'justificativa_analise',
+    type: 'text',
+    nullable: true,
+  })
+  justificativa_analise: string | null;
+
+  @Column({
+    name: 'data_analise_cadastral',
+    type: 'timestamp',
+    nullable: true,
+  })
+  data_analise_cadastral: Date | null;
+
+
+}
 

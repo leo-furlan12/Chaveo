@@ -44,6 +44,11 @@ const STATUS_CONFIG = {
     cor: "bg-emerald-100 text-emerald-800",
     etapa: 3,
   },
+  CADASTRO_RECUSADO: {
+  rotulo: "Cadastro recusado na análise cadastral",
+  cor: "bg-red-100 text-red-800",
+  etapa: 2,
+},
 };
 
 function ConteudoDetalhesContrato() {
@@ -419,7 +424,7 @@ function ConteudoDetalhesContrato() {
                     aprovar o contrato.
                   </p>
                   <Link
-                    href={`/RevisarContrato?id=${contrato.id}`}
+                    href={`/AnaliseCadastral?id=${contrato.id}`}
                     className="inline-flex items-center justify-center bg-teal text-white font-bold px-4 py-2.5 rounded-lg text-sm whitespace-nowrap"
                   >
                     Revisar e Aprovar
@@ -443,7 +448,7 @@ function ConteudoDetalhesContrato() {
                       Baixar PDF
                     </button>
                     <Link
-                      href={`/RevisarContrato?id=${contrato.id}`}
+                      href={`/AnaliseCadastral?id=${contrato.id}`}
                       className="inline-flex items-center gap-2 bg-slate-200 text-slate-800 font-semibold px-4 py-2.5 rounded-lg text-sm"
                     >
                       Ver contrato completo e PDF

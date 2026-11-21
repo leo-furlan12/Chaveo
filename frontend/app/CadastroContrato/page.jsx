@@ -390,7 +390,7 @@ function ConteudoCadastroContrato() {
               </p>
 
               <Link
-                href={`/RevisarContrato?id=${contratoId}`}
+                href={`/AnaliseCadastral?id=${contratoId}`}
                 className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
               >
                 Revisar contrato
@@ -401,7 +401,7 @@ function ConteudoCadastroContrato() {
           {contratoAprovado && (
             <div className="mt-6">
               <Link
-                href={`/RevisarContrato?id=${contratoId}`}
+                href={`/AnaliseCadastral?id=${contratoId}`}
                 className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
               >
                 Ver contrato aprovado / Baixar PDF
