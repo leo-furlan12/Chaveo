@@ -813,26 +813,34 @@ return {
   indice_reajuste: contrato.indice_reajuste,
 
   // dados do proprietario
-  locador: {
-    nome: contrato.locador.nome,
-    cpf: contrato.locador.cpf,
-    rg: contrato.locador.rg,
-    nacionalidade: contrato.locador.nacionalidade,
-    estado_civil: contrato.locador.estado_civil,
-    profissao: contrato.locador.profissao,
-  },
-
-  // dados do inquilino
-  locatario: contrato.locatario
-    ? {
-        nome: contrato.locatario.nome,
-        cpf: contrato.locatario.cpf,
-        rg: contrato.locatario.rg,
-        nacionalidade: contrato.locatario.nacionalidade,
-        estado_civil: contrato.locatario.estado_civil,
-        profissao: contrato.locatario.profissao,
-      }
-    : null,
+  locador: contrato.locador
+        ? {
+            nome: contrato.locador.nome,
+            cpf: contrato.locador.cpf,
+            rg: contrato.locador.rg,
+            data_nascimento:
+              (contrato.locador as any).data_nascimento || null,
+            nacionalidade: contrato.locador.nacionalidade,
+            estado_civil: contrato.locador.estado_civil,
+            profissao: contrato.locador.profissao,
+            email: (contrato.locador as any).email || null,
+            telefone: (contrato.locador as any).telefone || null,
+          }
+        : null,
+      locatario: contrato.locatario
+        ? {
+            nome: contrato.locatario.nome,
+            cpf: contrato.locatario.cpf,
+            rg: contrato.locatario.rg,
+            data_nascimento:
+              (contrato.locatario as any).data_nascimento || null,
+            nacionalidade: contrato.locatario.nacionalidade,
+            estado_civil: contrato.locatario.estado_civil,
+            profissao: contrato.locatario.profissao,
+            email: (contrato.locatario as any).email || null,
+            telefone: (contrato.locatario as any).telefone || null,
+          }
+        : null,
 
   // dados do imovel
   imovel: {

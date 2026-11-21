@@ -446,7 +446,7 @@ function ConteudoDetalhesContrato() {
                       href={`/RevisarContrato?id=${contrato.id}`}
                       className="inline-flex items-center gap-2 bg-slate-200 text-slate-800 font-semibold px-4 py-2.5 rounded-lg text-sm"
                     >
-                      Ver página de revisão
+                      Ver contrato completo e PDF
                     </Link>
                   </div>
                 </div>
