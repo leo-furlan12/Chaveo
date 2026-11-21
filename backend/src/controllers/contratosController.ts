@@ -90,8 +90,29 @@ export class ContratosController {
 
     // verifica se o imovel pertence ao usuario
     if (String(imovel.proprietario_id) !== String(usuarioId)) {
+      const contratoExistente = await this.contratoRepository.findOne({
+      where: { imovel_id: imovel.id },
+      order: { id: 'DESC' },
+    });
+
+    if (
+      contratoExistente &&
+      [
+        'RASCUNHO',
+        'AGUARDANDO_INQUILINO',
+        'PENDENTE_DADOS',
+        'AGUARDANDO_REVISAO',
+        'AGUARDANDO_ASSINATURAS',
+        'CONCLUIDO',
+      ].includes(contratoExistente.status)
+    ) {
+      throw new BadRequestException(
+        'Este imóvel já possui um contrato cadastrado ou em andamento.',
+      );
+    }
       throw new ForbiddenException('Este imóvel não pertence a você');
     }
+    
 
     // pega os dados do aluguel
 const {
@@ -659,7 +680,97 @@ contrato.status = 'PENDENTE_DADOS';
     };
   }
 
-  
+  // Busca o contrato do imóvel selecionado pelo proprietário
+  @Get('imovel/:imovelId')
+  @UseGuards(AuthGuard)
+  async buscarPorImovel(
+    @Param('imovelId') imovelId: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const imovel = await this.imovelRepository.findOne({
+      where: { id: imovelId },
+    });
+
+    if (!imovel) {
+      throw new NotFoundException('Imóvel não encontrado');
+    }
+
+    if (String(imovel.proprietario_id) !== usuarioId) {
+      throw new ForbiddenException('Este imóvel não pertence a você');
+    }
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { imovel_id: imovelId, locador_id: usuarioId },
+      relations: {
+        locador: true,
+        locatario: true,
+        imovel: true,
+      },
+      order: { id: 'DESC' },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Nenhum contrato encontrado para este imóvel');
+    }
+
+    return {
+      id: contrato.id,
+      status: contrato.status,
+      convite_token: contrato.convite_token,
+      cpf_locatario: contrato.cpf_locatario,
+      indice_reajuste: contrato.indice_reajuste,
+      locador: contrato.locador
+        ? {
+            nome: contrato.locador.nome,
+            cpf: contrato.locador.cpf,
+            rg: contrato.locador.rg,
+            nacionalidade: contrato.locador.nacionalidade,
+            estado_civil: contrato.locador.estado_civil,
+            profissao: contrato.locador.profissao,
+          }
+        : null,
+      locatario: contrato.locatario
+        ? {
+            nome: contrato.locatario.nome,
+            cpf: contrato.locatario.cpf,
+            rg: contrato.locatario.rg,
+            nacionalidade: contrato.locatario.nacionalidade,
+            estado_civil: contrato.locatario.estado_civil,
+            profissao: contrato.locatario.profissao,
+          }
+        : null,
+      imovel: contrato.imovel
+        ? {
+            id: contrato.imovel.id,
+            cep: contrato.imovel.cep,
+            logradouro: contrato.imovel.logradouro,
+            numero: contrato.imovel.numero,
+            complemento: contrato.imovel.complemento,
+            bairro: contrato.imovel.bairro,
+            cidade: contrato.imovel.cidade,
+            estado: contrato.imovel.estado,
+            tipo: contrato.imovel.tipo,
+          }
+        : null,
+      valor_aluguel: contrato.valor_aluguel,
+      data_inicio: contrato.data_inicio,
+      data_fim: contrato.data_fim,
+      dia_vencimento: contrato.dia_vencimento,
+      despesas_inclusas: contrato.despesas_inclusas,
+      garantia: contrato.garantia,
+      tipo_caucao: contrato.tipo_caucao,
+      valor_caucao: contrato.valor_caucao,
+      fiador_nome: contrato.fiador_nome,
+      fiador_cpf: contrato.fiador_cpf,
+      fiador_qualificacao: contrato.fiador_qualificacao,
+      fiador_imovel: contrato.fiador_imovel,
+      seguro_seguradora: contrato.seguro_seguradora,
+      seguro_apolice: contrato.seguro_apolice,
+    };
+  }
+
   // consulta os dados do contrato para completar o cadastro
   @Get(':id/dados')
   @UseGuards(AuthGuard)
@@ -697,6 +808,9 @@ const contrato = await this.contratoRepository.findOne({
 return {
   id: contrato.id,
   status: contrato.status,
+  convite_token: contrato.convite_token,
+  cpf_locatario: contrato.cpf_locatario,
+  indice_reajuste: contrato.indice_reajuste,
 
   // dados do proprietario
   locador: {
