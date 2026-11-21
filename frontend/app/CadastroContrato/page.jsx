@@ -39,7 +39,7 @@ const [contratoId, setContratoId] = useState(
     async function buscarImovel() {
       try {
         const resposta = await fetch(
-          `http://localhost:4000/api/imoveis/${imovelId}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/imoveis/${imovelId}`,
         );
 
         if (!resposta.ok) {

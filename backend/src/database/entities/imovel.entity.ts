@@ -42,7 +42,7 @@ export class Imovel {
   @Column({ type: 'char', length: 2 })
   estado: string;
 
-  @Column({ name: 'tipo', type: 'varchar', length: 50 })
+  @Column({ name: 'tipo_imovel', type: 'varchar', length: 50 })
   tipo: string;
 
   @Column({ type: 'varchar', length: 20 })

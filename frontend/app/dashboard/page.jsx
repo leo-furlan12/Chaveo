@@ -36,7 +36,7 @@ export default function DashboardProprietario() {
   const carregarImoveis = async () => {
     setCarregando(true);
     try {
-      const resposta = await fetch(`${apiUrl}/api/imoveis`);
+      const resposta = await fetch(`${apiUrl}/imoveis`);
       if (resposta.ok) {
         const dados = await resposta.json();
         setImoveis(Array.isArray(dados) ? dados : dados.dados || []);
@@ -58,7 +58,7 @@ export default function DashboardProprietario() {
   // AÇÃO: Excluir imóvel direto
   const excluirImovel = async (id) => {
     try {
-      const resposta = await fetch(`${apiUrl}/api/imoveis/${id}`, {
+      const resposta = await fetch(`${apiUrl}/imoveis/${id}`, {
         method: "DELETE",
       });
 
@@ -102,6 +102,9 @@ export default function DashboardProprietario() {
   const taxaOcupacao =
     totalImoveis > 0 ? Math.round((totalAlugados / totalImoveis) * 100) : 0;
 
+    const removerAcentos = (texto) =>
+    (texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
   // Filtragem para a tabela (Busca + Status + Tipo)
   const imoveisFiltrados = imoveis.filter((imovel) => {
     const termo = busca.toLowerCase();
@@ -111,11 +114,11 @@ export default function DashboardProprietario() {
       imovel.cidade?.toLowerCase().includes(termo) ||
       imovel.cep?.includes(termo);
 
-    const statusAtual = imovel.status?.toUpperCase() || "";
+    const statusAtual = removerAcentos(imovel.status);
     const statusMatch =
       filtroStatus === "TODOS" || statusAtual === filtroStatus;
 
-    const tipoAtual = (imovel.tipo || imovel.tipo_imovel || "").toUpperCase();
+    const tipoAtual = removerAcentos(imovel.tipo || imovel.tipo_imovel);
     const tipoMatch = filtroTipo === "TODOS" || tipoAtual === filtroTipo;
 
     return enderecoMatch && statusMatch && tipoMatch;
@@ -365,8 +368,8 @@ export default function DashboardProprietario() {
                     <option value="TODOS">Todos os Tipos</option>
                     <option value="APARTAMENTO">Apartamento</option>
                     <option value="CASA">Casa</option>
-                    <option value="KITNET">Kitnet</option>
-                    <option value="COMERCIAL">Comercial</option>
+                    <option value="SALA COMERCIAL">Sala Comercial</option>
+                    <option value="GALPAO">Galpão</option>
                     <option value="TERRENO">Terreno</option>
                   </select>
                 </div>

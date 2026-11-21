@@ -6,8 +6,6 @@ import {
   Body,
   Req,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
   BadRequestException,
   ForbiddenException,
   NotFoundException,
@@ -28,10 +26,7 @@ import { Res } from '@nestjs/common';
 import { Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { gerarConteudoContrato } from '../services/contratoPdf.service';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { mkdirSync } from 'fs';
-import { join, extname } from 'path';
+
 @Controller('contratos') //recebe solicitaçoes de cadastro de um contrato
 export class ContratosController {
   constructor(
@@ -59,17 +54,16 @@ export class ContratosController {
     return contratos.map((contrato) => ({
       ...contrato,
       imovel: contrato.imovel
-        ? {
-            ...contrato.imovel,
-            proprietario: contrato.imovel.proprietario
-              ? {
-                  nome: contrato.imovel.proprietario.nome,
-                  telefone: contrato.imovel.proprietario.telefone,
-                  email: contrato.imovel.proprietario.email,
-                }
-              : null,
-          }
-        : null,
+    ? {
+        cep: contrato.imovel.cep,
+        logradouro: contrato.imovel.logradouro,
+        numero: contrato.imovel.numero,
+        complemento: contrato.imovel.complemento,
+        bairro: contrato.imovel.bairro,
+        cidade: contrato.imovel.cidade,
+        estado: contrato.imovel.estado,
+      }
+    : null,
     }));
   }
 
@@ -779,13 +773,15 @@ return {
       valor_aluguel: contrato.valor_aluguel,
       data_inicio: contrato.data_inicio,
       data_fim: contrato.data_fim,
-      imovel: {
-        logradouro: contrato.imovel.logradouro,
-        numero: contrato.imovel.numero,
-        bairro: contrato.imovel.bairro,
-        cidade: contrato.imovel.cidade,
-        estado: contrato.imovel.estado,
-      },
+      imovel: contrato.imovel
+        ? {
+            logradouro: contrato.imovel.logradouro,
+            numero: contrato.imovel.numero,
+            bairro: contrato.imovel.bairro,
+            cidade: contrato.imovel.cidade,
+            estado: contrato.imovel.estado,
+          }
+        : null,
     }));
   }
 

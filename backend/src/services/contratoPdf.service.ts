@@ -237,25 +237,6 @@ if (contrato.garantia === 'caucao') {
 }
 // garantia por fiador
 if (contrato.garantia === 'fiador') {
-    // assinaturas das testemunhas
-pdf.font('Helvetica-Bold').fontSize(11)
-  .text('TESTEMUNHAS:');
-
-pdf.moveDown(1.5);
-
-pdf.font('Helvetica').fontSize(11);
-
-pdf.text('________________________________________');
-pdf.text('Testemunha 1');
-pdf.text('Nome: __________________________________');
-pdf.text('CPF: ___________________________________');
-
-pdf.moveDown(2);
-
-pdf.text('________________________________________');
-pdf.text('Testemunha 2');
-pdf.text('Nome: __________________________________');
-pdf.text('CPF: ___________________________________');
   pdf.text(
     '4.1. A presente locação terá como garantia a fiança prestada por ' +
     `${contrato.fiador_nome}, CPF nº ${contrato.fiador_cpf}, ` +
@@ -489,4 +470,21 @@ if (contrato.garantia === 'fiador') {
 
   pdf.moveDown(2);
 }
+
+// assinaturas das testemunhas
+pdf.font('Helvetica-Bold').fontSize(11).text('TESTEMUNHAS:');
+pdf.moveDown(1.5);
+pdf.font('Helvetica').fontSize(11);
+
+pdf.text('________________________________________');
+pdf.text('Testemunha 1');
+pdf.text('Nome: __________________________________');
+pdf.text('CPF: ___________________________________');
+
+pdf.moveDown(2);
+
+pdf.text('________________________________________');
+pdf.text('Testemunha 2');
+pdf.text('Nome: __________________________________');
+pdf.text('CPF: ___________________________________');
 }
