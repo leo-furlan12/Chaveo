@@ -80,6 +80,15 @@ const redirect = searchParams.get("redirect");
       //final da verificação
       setCarregando(false); //carregando guarda valor de true ou false, aqui carregando é false
     }
+    if (redirect && redirect.startsWith("/")) {
+        router.replace(redirect);
+      } else if (perfil.includes("INQUILINO")) {
+        router.replace("/dashboardInquilino");
+      } else if (perfil.includes("PROPRIETARIO")) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/dashboardteste");
+      }
   }
   return (
     <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-paper flex flex-col">

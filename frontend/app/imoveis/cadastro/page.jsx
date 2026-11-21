@@ -55,7 +55,7 @@ function ConteudoCadastrarImovel() {
   const imovelId = searchParams.get('id');
   const modoEdicao = Boolean(imovelId);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api').replace(/\/$/, '');
 
   const [dadosImovel, setDadosImovel] = useState({
     cep: '',
@@ -93,7 +93,7 @@ function ConteudoCadastrarImovel() {
       setCarregando(true);
       setErro('');
       try {
-        const resposta = await fetch(`${apiUrl}/api/imoveis/${imovelId}`);
+        const resposta = await fetch(`${apiUrl}/imoveis/${imovelId}`);
         if (!resposta.ok) {
           throw new Error('Não foi possível encontrar os dados deste imóvel.');
         }
@@ -183,7 +183,7 @@ function ConteudoCadastrarImovel() {
   };
 
   // 4. Salva no banco (POST para novo ou PATCH para edição) e retorna para a Dashboard
-  const lidarComEnvio = async (e) => {
+ const lidarComEnvio = async (e) => {
     e.preventDefault();
     if (bloqueadoPorAluguel) return;
 
@@ -191,29 +191,35 @@ function ConteudoCadastrarImovel() {
     setErro('');
 
     try {
-      const url = modoEdicao
-        ? `${apiUrl}/api/imoveis/${imovelId}`
-        : `${apiUrl}/api/imoveis`;
+      const token = sessionStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('Você precisa fazer login novamente.');
+      }
+
+    const url = modoEdicao
+        ? `${apiUrl}/imoveis/${imovelId}`
+        : `${apiUrl}/imoveis`;
       const metodo = modoEdicao ? 'PATCH' : 'POST';
 
       const pacoteParaBanco = {
         ...dadosImovel,
         cep: dadosImovel.cep.replace(/\D/g, ''),
-        proprietario_id: '1'
       };
 
       const resposta = await fetch(url, {
         method: metodo,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(pacoteParaBanco)
+        body: JSON.stringify(pacoteParaBanco),
       });
 
       if (!resposta.ok) {
         const erroJson = await resposta.json().catch(() => ({}));
         throw new Error(
-          erroJson.mensagem || 'Erro ao salvar as informações do imóvel.'
+          erroJson.mensagem || erroJson.message || 'Erro ao salvar as informações do imóvel.'
         );
       }
 
@@ -250,7 +256,7 @@ function ConteudoCadastrarImovel() {
 
             {bloqueadoPorAluguel && (
               <div className="alerta-bloqueio">
-                ⚠️ Regra de Negócio: Este imóvel está com status Alugado. O proprietário está proibido de alterar suas informações.
+                Regra de Negócio: Este imóvel está com status Alugado. O proprietário está proibido de alterar suas informações.
               </div>
             )}
 

@@ -1,8 +1,10 @@
-import { Controller, Post, Get, Param, Patch, Delete, Body, Param, Res, HttpStatus } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Post, Get, Param, Patch, Delete, Body, Res, HttpStatus, Req } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Imovel } from '../database/entities/imovel.entity';
+import { UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('imoveis')
 export class ImoveisController {
@@ -46,31 +48,34 @@ export class ImoveisController {
     }
   }
 
-  // 3. Rota POST para cadastrar novos imóveis
+  // Rota POST para cadastrar novos imóveis
   @Post()
-  async criar(@Body() dados: any, @Res() res: Response) {
-    try {
-      const payload = {
-        ...dados,
-        proprietario_id: dados.proprietario_id || '1',
-        status: dados.status || 'Disponivel',
-      };
-      const novoImovel = this.imovelRepository.create(payload);
-      const imovelSalvo = await this.imovelRepository.save(novoImovel);
+@UseGuards(AuthGuard)
+async criar(@Body() dados: any, @Req() req: Request, @Res() res: Response) {
+  try {
+    const usuarioId = String((req as any).user.sub);
+    const { id, proprietario_id, proprietario, ...dadosLimpos } = dados;
 
-      return res.status(HttpStatus.CREATED).json({
-        mensagem: 'Imóvel cadastrado com sucesso!',
-        dados: imovelSalvo,
-      });
-    } catch (erro) {
-      console.error('Erro ao salvar imóvel:', erro);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        mensagem: 'Erro interno ao tentar salvar o imóvel.',
-      });
-    }
+    const novoImovel = this.imovelRepository.create({
+      ...dadosLimpos,
+      proprietario_id: usuarioId,
+      status: dados.status || 'Disponível',
+    });
+    const imovelSalvo = await this.imovelRepository.save(novoImovel);
+
+    return res.status(HttpStatus.CREATED).json({
+      mensagem: 'Imóvel cadastrado com sucesso!',
+      dados: imovelSalvo,
+    });
+  } catch (erro) {
+    console.error('Erro ao salvar imóvel:', erro);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      mensagem: 'Erro interno ao tentar salvar o imóvel.',
+    });
   }
+}
 
-  @Get(':id')
+/*   @Get(':id')
   async buscarPorId(@Param('id') id: string, @Res() res: Response) {
     try {
       // busca o imóvel pelo id
@@ -94,7 +99,7 @@ export class ImoveisController {
         mensagem: 'Erro ao buscar imóvel.',
       });
     }
-  }
+  } */
 
   
     // 4. Rota PATCH para editar o imóvel (COM REGRA DE NEGÓCIO)
@@ -122,7 +127,9 @@ export class ImoveisController {
         });
       }
 
-      Object.assign(imovelExistente, dados);
+      const { id: _id, proprietario_id, proprietario, ...dadosLimpos } = dados;
+
+      Object.assign(imovelExistente, dadosLimpos);
       const imovelAtualizado = await this.imovelRepository.save(imovelExistente);
 
       return res.status(HttpStatus.OK).json({
