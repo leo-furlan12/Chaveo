@@ -22,7 +22,6 @@ async cadastrar(@Body() body: any) {
     nacionalidade,
     estado_civil,
     profissao,
-    chave_pix,
     perfil,
     cidade,
     estado,
@@ -82,7 +81,6 @@ async cadastrar(@Body() body: any) {
           nacionalidade: nacionalidade || 'Brasileira',
           estado_civil: estado_civil || 'SOLTEIRO',
           profissao: profissao || null,
-          chave_pix: chave_pix || null,
           ativo: true,
         });
 

@@ -16,6 +16,12 @@ export class AsaasWebhookEvento {
   @Column({ type: 'jsonb', nullable: true })
   dados_pagamento: Record<string, unknown> | null;
 
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  asaas_transfer_id: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  dados_transferencia: Record<string, unknown> | null;
+
   @Column({ type: 'varchar', length: 20, default: 'PENDENTE' })
   status_processamento: string;
 

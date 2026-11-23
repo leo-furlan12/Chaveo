@@ -39,6 +39,43 @@ export class Usuario {
   @Column({ type: 'varchar', length: 80, nullable: true, unique: true })
   asaas_customer_id: string | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  recebimento_tipo: string | null;
+
+  // Dados pessoais e bancários são armazenados cifrados pela aplicação.
+  @Column({ type: 'text', nullable: true })
+  recebimento_pix_chave_cifrada: string | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  recebimento_pix_tipo: string | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  recebimento_banco_codigo: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  recebimento_banco_agencia_cifrada: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  recebimento_banco_agencia_digito_cifrado: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  recebimento_banco_conta_cifrada: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  recebimento_banco_conta_digito_cifrado: string | null;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  recebimento_banco_tipo_conta: string | null;
+
+  @Column({ type: 'varchar', length: 3, nullable: true })
+  recebimento_banco_operacao: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  recebimento_titular_nome_cifrado: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  recebimento_titular_documento_cifrado: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   senha_hash: string;
 
