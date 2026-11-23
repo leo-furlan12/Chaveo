@@ -11,6 +11,8 @@ function ConteudoCadastroContrato() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const imovelId = searchParams.get("imovelId");
+  const modoEdicao = searchParams.get("editar") === "true";
+  const modoNovo = searchParams.get("novo") === "true";
 
   const apiUrl = (
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
@@ -44,7 +46,7 @@ function ConteudoCadastroContrato() {
   const [gerandoConvite, setGerandoConvite] = useState(false);
   const [imovel, setImovel] = useState(null);
 
-  // 1. Busca os dados do imóvel e verifica se já existe contrato cadastrado para ele
+//busca os dados do imóvel e verifica se já existe contrato cadastrado para ele
   useEffect(() => {
     if (!imovelId && !contratoId) {
       setVerificandoExistente(false);
@@ -73,6 +75,46 @@ function ConteudoCadastroContrato() {
 
             if (respContrato.ok) {
               const contratoExistente = await respContrato.json();
+
+              // Se o contrato anterior foi recusado e clicou em "Iniciar Novo Contrato", libera o formulário limpo
+              if (
+                modoNovo &&
+                contratoExistente.status === "CADASTRO_RECUSADO"
+              ) {
+                return;
+              }
+
+              // Se está em modo edição antes do aceite do inquilino, preenche os campos para alterar
+              if (
+                modoEdicao &&
+                ["RASCUNHO", "AGUARDANDO_INQUILINO"].includes(
+                  contratoExistente.status
+                )
+              ) {
+                setContratoId(String(contratoExistente.id));
+                setStatusContrato(contratoExistente.status);
+                setConviteToken(contratoExistente.convite_token || "");
+                setValorAluguel(String(contratoExistente.valor_aluguel || ""));
+                setIndiceReajuste(contratoExistente.indice_reajuste || "");
+                setDespesas(contratoExistente.despesas_inclusas || []);
+                setCpfInquilino(contratoExistente.cpf_locatario || "");
+                setGarantia(contratoExistente.garantia || "");
+                setTipoCaucao(contratoExistente.tipo_caucao || "");
+                setValorCaucao(String(contratoExistente.valor_caucao || ""));
+                setDataInicio(
+                  contratoExistente.data_inicio
+                    ? String(contratoExistente.data_inicio).slice(0, 10)
+                    : ""
+                );
+                setDataFim(
+                  contratoExistente.data_fim
+                    ? String(contratoExistente.data_fim).slice(0, 10)
+                    : ""
+                );
+                setDiaVencimento(String(contratoExistente.dia_vencimento || ""));
+                return;
+              }
+
               setContratoId(String(contratoExistente.id));
               setStatusContrato(contratoExistente.status || "");
               setConviteToken(contratoExistente.convite_token || "");
@@ -87,7 +129,7 @@ function ConteudoCadastroContrato() {
     }
 
     inicializarTela();
-  }, [imovelId, apiUrl]);
+  }, [imovelId, apiUrl, modoEdicao, modoNovo]);
 
   function alterarDespesa(despesa) {
     if (despesas.includes(despesa)) {
@@ -173,29 +215,34 @@ function ConteudoCadastroContrato() {
         return;
       }
 
-      const resposta = await fetch(`${apiUrl}/contratos`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          imovel_id: imovelId,
-          cpf_locatario: cpfInquilino,
-          valor_aluguel: Number(valorAluguel),
-          data_inicio: dataInicio,
-          data_fim: dataFim,
-          dia_vencimento: Number(diaVencimento),
-          indice_reajuste: indiceReajuste,
-          despesas_inclusas: despesas,
-          garantia: garantia,
-          tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
-          valor_caucao:
-            garantia === "caucao" && tipoCaucao === "negociado"
-              ? Number(valorCaucao)
-              : null,
-        }),
-      });
+      const urlRequisicao =
+   modoEdicao && contratoId
+     ? `${apiUrl}/contratos/${contratoId}`
+     : `${apiUrl}/contratos`;
+
+ const resposta = await fetch(urlRequisicao, {
+   method: modoEdicao && contratoId ? "PATCH" : "POST",
+   headers: {
+     "Content-Type": "application/json",
+     Authorization: `Bearer ${token}`,
+   },
+   body: JSON.stringify({
+     imovel_id: imovelId,
+     cpf_locatario: cpfInquilino,
+     valor_aluguel: Number(valorAluguel),
+     data_inicio: dataInicio,
+     data_fim: dataFim,
+     dia_vencimento: Number(diaVencimento),
+     indice_reajuste: indiceReajuste,
+     despesas_inclusas: despesas,
+     garantia: garantia,
+     tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
+     valor_caucao:
+       garantia === "caucao" && tipoCaucao === "negociado"
+         ? Number(valorCaucao)
+         : null,
+   }),
+ });
 
       const dados = await resposta.json();
       if (!resposta.ok) {
@@ -207,6 +254,10 @@ function ConteudoCadastroContrato() {
         );
         return;
       }
+      if (modoEdicao && contratoId) {
+   router.push(`/DetalhesContrato?imovelId=${imovelId}`);
+   return;
+ }
 
       const novoId = String(dados.contrato.id);
       setContratoId(novoId);
@@ -323,7 +374,7 @@ function ConteudoCadastroContrato() {
   }
 
   // TELA DE ACOMPANHAMENTO (aparece após cadastrar ou ao recarregar um imóvel que já possui contrato)
-  if (conviteToken || contratoId) {
+  if ((conviteToken || contratoId) && !modoEdicao) {
     const inquilinoConcluiu =
       statusContrato === "AGUARDANDO_REVISAO" ||
       statusContrato === "AGUARDANDO_ASSINATURAS" ||
@@ -713,7 +764,13 @@ function ConteudoCadastroContrato() {
                 />
               ) : (
                 <Button
-                  texto={carregando ? "Cadastrando..." : "Cadastrar contrato"}
+                  texto={
+                  carregando
+                    ? "Salvando..."
+                    : modoEdicao
+                    ? "Salvar alterações"
+                    : "Cadastrar contrato"
+                }
                   onClick={cadastrarContrato}
                   disabled={carregando}
                 />

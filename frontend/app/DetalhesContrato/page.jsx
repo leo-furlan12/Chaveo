@@ -314,7 +314,57 @@ function ConteudoDetalhesContrato() {
       setEnviandoAssinatura(false);
     }
   }
+const [seguradora, setSeguradora] = useState("");
+  const [apolice, setApolice] = useState("");
+  const [salvandoSeguro, setSalvandoSeguro] = useState(false);
 
+  useEffect(() => {
+    if (contrato?.garantia === "seguro") {
+      setSeguradora(contrato.seguro_seguradora || "");
+      setApolice(contrato.seguro_apolice || "");
+    }
+  }, [contrato]);
+
+  async function salvarDadosSeguro(e) {
+    e.preventDefault();
+    if (!contrato?.id || salvandoSeguro) return;
+
+    setSalvandoSeguro(true);
+    setErro("");
+    setFeedback("");
+
+    try {
+      const token = sessionStorage.getItem("token");
+      const resposta = await fetch(`${apiUrl}/contratos/${contrato.id}/seguro`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          seguro_seguradora: seguradora,
+          seguro_apolice: apolice,
+        }),
+      });
+
+      const dados = await resposta.json();
+      if (!resposta.ok) {
+        setErro(dados.message || "Erro ao salvar dados do seguro-fiança.");
+        return;
+      }
+
+      setContrato((prev) => ({
+        ...prev,
+        seguro_seguradora: dados.seguro_seguradora,
+        seguro_apolice: dados.seguro_apolice,
+      }));
+      setFeedback(dados.message);
+    } catch {
+      setErro("Não foi possível conectar ao servidor.");
+    } finally {
+      setSalvandoSeguro(false);
+    }
+  }
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft p-6 text-slate-darker">
       <div className="max-w-3xl mx-auto bg-paper rounded-xl p-7 shadow-lg">
@@ -459,12 +509,23 @@ function ConteudoDetalhesContrato() {
                 </div>
               )}
 
-              {contrato.status === "AGUARDANDO_INQUILINO" && (
-                <div className="pt-3 border-t border-slate-200 space-y-2">
-                  <p className="text-sm font-semibold">
-                    Link de convite para o inquilino (CPF:{" "}
-                    {contrato.cpf_locatario}):
-                  </p>
+             {contrato.status === "AGUARDANDO_INQUILINO" && (
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">
+                      Link de convite para o inquilino (CPF:{" "}
+                      {contrato.cpf_locatario}):
+                    </p>
+                    {imovelId && (
+                      <Link
+                        href={`/CadastroContrato?imovelId=${imovelId}&editar=true`}
+                        className="text-xs font-bold text-teal hover:underline"
+                      >
+                        Editar dados do contrato
+                      </Link>
+                    )}
+                  </div>
+
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
@@ -504,6 +565,23 @@ function ConteudoDetalhesContrato() {
                   >
                     Revisar e Aprovar
                   </Link>
+                </div>
+              )}
+              {contrato.status === "CADASTRO_RECUSADO" && (
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <p className="text-sm text-red-700">
+                    <strong>Motivo da recusa:</strong>{" "}
+                    {contrato.justificativa_analise || "Não informado"}
+                  </p>
+                  {imovelId && (
+                    <Link
+                      href={`/CadastroContrato?imovelId=${imovelId}&novo=true`}
+                      className="inline-flex items-center gap-2 bg-teal text-white font-bold px-4 py-2.5 rounded-lg text-sm"
+                    >
+                      <Plus size={16} />
+                      Iniciar Novo Contrato para este Imóvel
+                    </Link>
+                  )}
                 </div>
               )}
 
@@ -734,17 +812,46 @@ function ConteudoDetalhesContrato() {
                   )}
                 </>
               )}
-              {contrato.garantia === "seguro" && (
-                <>
-                  <p>
-                    <strong>Seguradora:</strong>{" "}
-                    {contrato.seguro_seguradora || "Pendente"}
-                  </p>
-                  <p>
-                    <strong>Apólice:</strong>{" "}
-                    {contrato.seguro_apolice || "Pendente"}
-                  </p>
-                </>
+             {contrato.garantia === "seguro" && (
+                <form onSubmit={salvarDadosSeguro} className="space-y-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold mb-1">
+                        Seguradora
+                      </label>
+                      <input
+                        type="text"
+                        value={seguradora}
+                        onChange={(e) => setSeguradora(e.target.value)}
+                        placeholder="Ex: Porto Seguro"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1">
+                        Número da Apólice
+                      </label>
+                      <input
+                        type="text"
+                        value={apolice}
+                        onChange={(e) => setApolice(e.target.value)}
+                        placeholder="Ex: 000123456-7"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs"
+                      />
+                    </div>
+                  </div>
+                  {contrato.status !== "CONCLUIDO" && (
+                    <button
+                      type="submit"
+                      disabled={salvandoSeguro}
+                      className="bg-ink text-white font-bold px-4 py-2 rounded-lg text-xs disabled:opacity-50"
+                    >
+                      {salvandoSeguro
+                        ? "Salvando..."
+                        : "Salvar Dados do Seguro-Fiança"}
+                    </button>
+                  )}
+                </form>
               )}
             </section>
           </div>

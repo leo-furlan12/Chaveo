@@ -13,7 +13,8 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
-  UploadedFile
+  UploadedFile,
+  Patch
 } from '@nestjs/common';
 import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
@@ -1355,4 +1356,132 @@ async gerarPdf(
     return res.sendFile(caminhoArquivo);
   }
 
+  // edita os dados do contrato enquanto o inquilino ainda não aceitou o convite
+  @Patch(':id')
+  @UseGuards(AuthGuard)
+  async atualizarContratoPreAceite(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException('Apenas o proprietário pode editar o contrato');
+    }
+
+    if (
+      contrato.status !== 'RASCUNHO' &&
+      contrato.status !== 'AGUARDANDO_INQUILINO'
+    ) {
+      throw new BadRequestException(
+        'Não é possível editar o contrato após o inquilino aceitar o convite',
+      );
+    }
+
+    if (body.cpf_locatario !== undefined) {
+      const cpfLimpo = String(body.cpf_locatario).replace(/\D/g, '');
+      if (cpfLimpo.length !== 11) {
+        throw new BadRequestException('Informe um CPF válido com 11 dígitos');
+      }
+      contrato.cpf_locatario = cpfLimpo;
+    }
+
+    if (body.valor_aluguel !== undefined) {
+      contrato.valor_aluguel = String(Number(body.valor_aluguel));
+    
+    }
+    if (body.data_inicio !== undefined) {
+      contrato.data_inicio = body.data_inicio;
+    }
+    if (body.data_fim !== undefined) {
+      contrato.data_fim = body.data_fim;
+    }
+    if (body.dia_vencimento !== undefined) {
+      contrato.dia_vencimento = Number(body.dia_vencimento);
+    }
+    if (body.indice_reajuste !== undefined) {
+      contrato.indice_reajuste = body.indice_reajuste;
+    }
+    if (body.despesas_inclusas !== undefined) {
+      contrato.despesas_inclusas = Array.isArray(body.despesas_inclusas)
+        ? body.despesas_inclusas
+        : [];
+    }
+    if (body.garantia !== undefined) {
+      contrato.garantia = body.garantia;
+      contrato.tipo_caucao =
+        body.garantia === 'caucao' ? body.tipo_caucao || null : null;
+      contrato.valor_caucao =
+        body.garantia === 'caucao' && body.tipo_caucao === 'negociado'
+          ? String(Number(body.valor_caucao))
+          : null;
+    }
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message: 'Contrato atualizado com sucesso!',
+      contrato,
+    };
+  }
+
+  // proprietário informa seguradora e apólice quando garantia === 'seguro'
+  @Patch(':id/seguro')
+  @UseGuards(AuthGuard)
+  async salvarDadosSeguro(
+    @Param('id') id: string,
+    @Body() body: { seguro_seguradora?: string; seguro_apolice?: string },
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException(
+        'Apenas o proprietário pode informar os dados do seguro-fiança',
+      );
+    }
+
+    if (contrato.garantia !== 'seguro') {
+      throw new BadRequestException(
+        'A garantia deste contrato não é seguro-fiança',
+      );
+    }
+
+    const seguradora = String(body?.seguro_seguradora || '').trim();
+    const apolice = String(body?.seguro_apolice || '').trim();
+
+    if (!seguradora || !apolice) {
+      throw new BadRequestException(
+        'Informe o nome da seguradora e o número da apólice',
+      );
+    }
+
+    contrato.seguro_seguradora = seguradora;
+    contrato.seguro_apolice = apolice;
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message: 'Dados do seguro-fiança salvos com sucesso!',
+      seguro_seguradora: contrato.seguro_seguradora,
+      seguro_apolice: contrato.seguro_apolice,
+    };
+  }
 }
