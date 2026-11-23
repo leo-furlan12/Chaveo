@@ -3,105 +3,95 @@
 import Logo from "../components/Logo";
 import Checkbox from "../components/Checkbox";
 import Button from "../components/Button";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";//rota
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-
-//funções login/conexão com backend :
-
-export default function Login() {
+function ConteudoLogin() {
   const router = useRouter();
   const searchParams = useSearchParams();
-const redirect = searchParams.get("redirect");
+  const redirect = searchParams.get("redirect");
+
   const [cpf, setCpf] = useState("");
-  //setCpf = função usada para alterar o cpf, eu quero morrer
-  //cpf = valor atual
   const [senha, setSenha] = useState("");
-  const [mensagem, setMensagem] = useState(""); //guarda mensagem de erro
+  const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  /*//funcao para enviar login
-  function handleSubmit(event) {
-  event.preventDefault(); //nao recarregar a pagina
 
-  console.log("CPF:", cpf);
-  console.log("Senha:", senha); */
   async function handleSubmit(event) {
     event.preventDefault();
     setMensagem("");
     setErro(false);
     setCarregando(true);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+
+   
     try {
-      const resposta = await fetch(
-          'http://localhost:4000/api/auth/login', //await = esperar respostas
-        {
-          method: "POST", //metodo de envio de dados a backend por HTTP
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            //javaScript que transforma cpf e senha em arquivo json
-            cpf: cpf.replace(/\D/g, ""),
-            senha: senha,
-          }),
+      const resposta = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          cpf: cpf.replace(/\D/g, ""),
+          senha: senha,
+        }),
+      });
 
-      const dados = await resposta.json(); //pega resultados da função await resposta
+      const dados = await resposta.json();
 
-      
       if (!resposta.ok) {
-        //compara resultado de "resposta"(200 - correto 401-erro)
         setErro(true);
         setMensagem(dados.message || "Erro ao realizar login");
         return;
       }
-      sessionStorage.setItem("token", dados.access_token); //verficar token quando funcioa, f12, aplplication, session, localhost3000
 
+      const tokenRecebido = dados?.access_token || dados?.token;
+      sessionStorage.setItem("token", tokenRecebido);
       setMensagem("Login realizado com sucesso!");
 
-      const perfis = Array.isArray(dados.perfis)
-        ? dados.perfis.map((perfil) => perfil.toUpperCase())
-        : [];
+      let payloadToken = {};
+      try {
+        if (tokenRecebido) {
+          payloadToken = JSON.parse(atob(tokenRecebido.split(".")[1]));
+        }
+      } catch {}
 
-      if (perfis.includes("INQUILINO")) {
+      const origemPerfis =
+        dados?.perfis ||
+        dados?.usuario?.perfis ||
+        payloadToken?.perfis ||
+        [];
+
+      const perfis = Array.isArray(origemPerfis)
+        ? origemPerfis.map((p) => String(p).toUpperCase())
+        : [String(origemPerfis).toUpperCase()];
+
+      if (redirect && redirect.startsWith("/")) {
+        router.replace(redirect);
+      } else if (perfis.includes("INQUILINO")) {
         router.replace("/dashboardInquilino");
       } else if (perfis.includes("PROPRIETARIO")) {
         router.replace("/dashboard");
       } else {
         router.replace("/dashboardteste");
       }
-    } catch (erro) {
-      //caso de erro
+    } catch {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
     } finally {
-      //final da verificação
-      setCarregando(false); //carregando guarda valor de true ou false, aqui carregando é false
+      setCarregando(false);
     }
-    if (redirect && redirect.startsWith("/")) {
-        router.replace(redirect);
-      } else if (perfil.includes("INQUILINO")) {
-        router.replace("/dashboardInquilino");
-      } else if (perfil.includes("PROPRIETARIO")) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/dashboardteste");
-      }
   }
+
   return (
-    <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-paper flex flex-col">
+    <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-paper flex flex-col">
       <header>
-        <div>
-          <div className="p-8 ">
-            <Logo />
-          </div>
+        <div className="p-8">
+          <Logo />
         </div>
       </header>
 
-      <section className="flex-1 flex content-center justify-center ">
-        <div className="">
+      <section className="flex-1 flex content-center justify-center">
+        <div>
           <div className="text-center">
             <div className="p-8 flex justify-center">
               <div className="p-8 flex justify-center">
@@ -114,11 +104,10 @@ const redirect = searchParams.get("redirect");
 
           <form
             onSubmit={handleSubmit}
-            className="grid grid-cols-2  gap-4 font-[family-name:var(--font-jetbrains-mono)]"
+            className="grid grid-cols-2 gap-4 font-[family-name:var(--font-jetbrains-mono)]"
           >
             <div>CPF:</div>
             <div className="col-span-2 row-start-2">
-              {" "}
               <input
                 value={cpf}
                 onChange={(event) => setCpf(event.target.value)}
@@ -127,37 +116,36 @@ const redirect = searchParams.get("redirect");
                 placeholder="Insira seu CPF"
               />
             </div>
-            <div className="col-span-2 row-start-3 ">Senha:</div>
+
+            <div className="col-span-2 row-start-3">Senha:</div>
             <div className="col-span-2 row-start-4">
-              {" "}
               <input
                 value={senha}
                 onChange={(event) => setSenha(event.target.value)}
-                className="bg-slate/10 rounded-lg w-full p-3 h-10 "
+                className="bg-slate/10 rounded-lg w-full p-3 h-10"
                 type="password"
                 placeholder="Insira sua senha"
               />
             </div>
-            <div className="row-start-5 text-teal ">
-              <Checkbox texto="Lembrar Dados?"></Checkbox>
+
+            <div className="row-start-5 text-teal">
+              <Checkbox texto="Lembrar Dados?" />
             </div>
-            <div
-              className="row-start-5 text-teal  content-center text-right
-"
-            >
-              {" "}
+
+            <div className="row-start-5 text-teal content-center text-right">
               Esqueci Senha
             </div>
+
             <div className="col-span-2 text-center">
-              <Button type="submit"
+              <Button
+                type="submit"
                 texto={carregando ? "Entrando..." : "Entrar"}
                 disabled={carregando}
               />
-              {/* definir texto de botao com base na função que atua  */}
-              {mensagem && ( //se mostrar conteudo na mensagem
-                <p //abre um paragrafo para dar erro
-                  role={erro ? "alert" : "status"} //define css da mensagem de erro
-                  className={`col-span-2 text-center text-sm ${
+              {mensagem && (
+                <p
+                  role={erro ? "alert" : "status"}
+                  className={`col-span-2 text-center text-sm mt-2 ${
                     erro ? "text-red-400" : "text-teal"
                   }`}
                 >
@@ -169,5 +157,13 @@ const redirect = searchParams.get("redirect");
         </div>
       </section>
     </main>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink" />}>
+      <ConteudoLogin />
+    </Suspense>
   );
 }
