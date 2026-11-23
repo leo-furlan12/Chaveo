@@ -68,6 +68,13 @@ cpf_locatario: string | null;
   @Column({ type: 'int', nullable: true })
   dia_vencimento: number | null;
 
+  // A assinatura é específica deste contrato (valor, vencimento e período).
+  @Column({ type: 'varchar', length: 80, nullable: true, unique: true })
+  asaas_subscription_id: string | null;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  asaas_subscription_status: string | null;
+
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   convite_token: string | null; //guarda codigo unico para convite
 

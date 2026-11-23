@@ -9,6 +9,8 @@ import { UsuarioPerfil } from './entities/usuario-perfil.entity';
 import { Permissao } from './entities/permissao.entity';
 import { PerfilPermissao } from './entities/perfil-permissao.entity';
 import { Imovel } from './entities/imovel.entity';
+import { Fatura } from './entities/fatura.entity';
+import { AsaasWebhookEvento } from './entities/asaas-webhook-evento.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres', //tipo de banco
@@ -30,6 +32,8 @@ export const AppDataSource = new DataSource({
     PerfilPermissao,
     Imovel,
     Contrato,
+    Fatura,
+    AsaasWebhookEvento,
   ],
 
   migrations: ['src/database/migrations/*.ts'],
