@@ -56,7 +56,8 @@ function ConteudoDetalhesContrato() {
   const searchParams = useSearchParams();
   const imovelId = searchParams.get("imovelId");
   const contratoIdParam = searchParams.get("id");
-
+  const [arquivoAssinado, setArquivoAssinado] = useState(null);
+  const [enviandoAssinatura, setEnviandoAssinatura] = useState(false);
   const apiUrl = (
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
   ).replace(/\/$/, "");
@@ -239,6 +240,80 @@ function ConteudoDetalhesContrato() {
         etapa: 1,
       }
     : null;
+
+  async function baixarContratoAssinado() {
+    try {
+      const token = sessionStorage.getItem("token");
+      const resposta = await fetch(
+        `${apiUrl}/contratos/${contrato.id}/contrato-assinado`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!resposta.ok) {
+        setErro("Não foi possível abrir o contrato assinado.");
+        return;
+      }
+
+      const blob = await resposta.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `contrato-${contrato.id}-assinado.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setErro("Erro ao baixar o contrato assinado.");
+    }
+  }
+
+  async function enviarContratoAssinado() {
+    if (!contrato?.id || enviandoAssinatura) return;
+
+    if (!arquivoAssinado) {
+      setErro("Selecione o arquivo do contrato assinado antes de enviar.");
+      return;
+    }
+
+    setEnviandoAssinatura(true);
+    setErro("");
+    setFeedback("");
+
+    try {
+      const token = sessionStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("arquivo", arquivoAssinado);
+
+      const resposta = await fetch(
+        `${apiUrl}/contratos/${contrato.id}/upload-assinatura`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }
+      );
+
+      const dados = await resposta.json();
+      if (!resposta.ok) {
+        setErro(dados.message || "Erro ao enviar o contrato assinado.");
+        return;
+      }
+
+      setContrato((prev) => ({
+        ...prev,
+        ...dados,
+      }));
+      setArquivoAssinado(null);
+      setFeedback(dados.message);
+    } catch {
+      setErro("Não foi possível conectar ao servidor.");
+    } finally {
+      setEnviandoAssinatura(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft p-6 text-slate-darker">
@@ -433,29 +508,107 @@ function ConteudoDetalhesContrato() {
               )}
 
               {(contrato.status === "AGUARDANDO_ASSINATURAS" ||
-                contrato.status === "CONCLUIDO") && (
-                <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-medium">
-                    Contrato aprovado e pronto para assinatura.
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={baixarPDF}
-                      className="inline-flex items-center gap-2 bg-teal text-white font-bold px-4 py-2.5 rounded-lg text-sm"
-                    >
-                      <Download size={16} />
-                      Baixar PDF
-                    </button>
-                    <Link
-                      href={`/AnaliseCadastral?id=${contrato.id}`}
-                      className="inline-flex items-center gap-2 bg-slate-200 text-slate-800 font-semibold px-4 py-2.5 rounded-lg text-sm"
-                    >
-                      Ver contrato completo e PDF
-                    </Link>
-                  </div>
-                </div>
-              )}
+    contrato.status === "CONCLUIDO") && (
+    <div className="pt-3 border-t border-slate-200 space-y-4">
+      {contrato.status === "CONCLUIDO" ? (
+        <div className="rounded-lg border border-teal/30 bg-teal/10 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-teal text-sm">
+                ✓ Contrato concluído e assinado!
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Enviado em{" "}
+                {contrato.data_assinatura_final
+                  ? new Date(contrato.data_assinatura_final).toLocaleString(
+                      "pt-BR",
+                      { dateStyle: "short", timeStyle: "short" }
+                    )
+                  : "data registrada"}{" "}
+                • Imóvel atualizado para Alugado.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={baixarContratoAssinado}
+                className="inline-flex items-center gap-2 bg-teal text-white font-bold px-4 py-2.5 rounded-lg text-xs"
+              >
+                <Download size={15} />
+                Baixar Contrato Assinado
+              </button>
+
+              <Link
+                href={`/AnaliseCadastral?id=${contrato.id}`}
+                className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-800 font-semibold px-4 py-2.5 rounded-lg text-xs"
+              >
+                Ver análise cadastral
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+            <div>
+              <p className="font-bold text-sm">
+                Finalização e Coleta de Assinaturas
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                1º Baixe o PDF aprovado. 2º Assine junto com o inquilino e faça
+                o upload do documento único assinado abaixo.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={baixarPDF}
+                className="inline-flex items-center gap-2 bg-teal text-white font-bold px-3.5 py-2 rounded-lg text-xs"
+              >
+                <Download size={15} />
+                Baixar PDF
+              </button>
+
+              <Link
+                href={`/AnaliseCadastral?id=${contrato.id}`}
+                className="inline-flex items-center gap-2 bg-slate-100 text-slate-800 font-semibold px-3.5 py-2 rounded-lg text-xs"
+              >
+                Análise cadastral
+              </Link>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700">
+              Anexar contrato assinado por ambas as partes (PDF, JPG ou PNG):
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  setArquivoAssinado(e.target.files?.[0] || null)
+                }
+                className="flex-1 text-xs border border-dashed border-slate-300 rounded-lg p-2"
+              />
+              <button
+                type="button"
+                onClick={enviarContratoAssinado}
+                disabled={enviandoAssinatura}
+                className="bg-ink text-white font-bold px-4 py-2 rounded-lg text-xs disabled:opacity-50 whitespace-nowrap"
+              >
+                {enviandoAssinatura
+                  ? "Enviando..."
+                  : "Enviar Contrato Assinado"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )}
             </section>
 
             {contrato.imovel && (

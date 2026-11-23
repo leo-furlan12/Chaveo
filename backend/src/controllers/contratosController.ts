@@ -13,11 +13,12 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  UploadedFile
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { basename, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 //controller recebe requisisções http e encaminha
 
 
@@ -731,6 +732,9 @@ contrato.status = 'PENDENTE_DADOS';
       status_analise_cadastral: contrato.status_analise_cadastral,
       justificativa_analise: contrato.justificativa_analise,
       data_analise_cadastral: contrato.data_analise_cadastral,
+      arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
+      data_assinatura_final: contrato.data_assinatura_final || null,
+      
       locador: contrato.locador
         ? {
             nome: contrato.locador.nome,
@@ -827,6 +831,8 @@ return {
   status_analise_cadastral: contrato.status_analise_cadastral,
   justificativa_analise: contrato.justificativa_analise,
   data_analise_cadastral: contrato.data_analise_cadastral,
+  arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
+  data_assinatura_final: contrato.data_assinatura_final || null,
 
   // dados do proprietario
   locador: contrato.locador
@@ -1221,5 +1227,132 @@ async gerarPdf(
     };
   }
 
+  // proprietário envia o contrato único já assinado por ambas as partes
+  @Post(':id/upload-assinatura')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      dest: './uploads/contratos',
+    }),
+  )
+  async uploadContratoAssinado(
+    @Param('id') id: string,
+    @UploadedFile() arquivo: any,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException(
+        'Apenas o proprietário pode enviar o contrato final assinado',
+      );
+    }
+
+    if (
+      contrato.status !== 'AGUARDANDO_ASSINATURAS' &&
+      contrato.status !== 'CONCLUIDO'
+    ) {
+      throw new BadRequestException(
+        'Aprove a análise cadastral antes de enviar o contrato assinado',
+      );
+    }
+
+    if (!arquivo) {
+      throw new BadRequestException(
+        'Selecione o arquivo PDF ou imagem do contrato assinado',
+      );
+    }
+
+    // remove o arquivo anterior se o proprietário estiver substituindo o PDF
+    if (contrato.arquivo_contrato_assinado) {
+      try {
+        unlinkSync(
+          join(
+            process.cwd(),
+            'uploads',
+            'contratos',
+            basename(contrato.arquivo_contrato_assinado),
+          ),
+        );
+      } catch {}
+    }
+
+    contrato.arquivo_contrato_assinado = arquivo.filename;
+    contrato.data_assinatura_final = new Date();
+    contrato.status = 'CONCLUIDO';
+
+    const imovel = await this.imovelRepository.findOne({
+      where: { id: contrato.imovel_id },
+    });
+
+    if (imovel) {
+      imovel.status = 'Alugado';
+      await this.imovelRepository.save(imovel);
+    }
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message:
+        'Contrato assinado enviado com sucesso! Contrato concluído e imóvel marcado como Alugado.',
+      status: contrato.status,
+      arquivo_contrato_assinado: contrato.arquivo_contrato_assinado,
+      data_assinatura_final: contrato.data_assinatura_final,
+    };
+  }
+
+  //proprietário ou inquilino baixa/visualiza o contrato final assinado
+  @Get(':id/contrato-assinado')
+  @UseGuards(AuthGuard)
+  async baixarContratoAssinado(
+    @Param('id') id: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    const ehLocador = String(contrato.locador_id) === usuarioId;
+    const ehLocatario = String(contrato.locatario_id) === usuarioId;
+
+    if (!ehLocador && !ehLocatario) {
+      throw new ForbiddenException('Sem permissão para acessar este contrato');
+    }
+
+    if (!contrato.arquivo_contrato_assinado) {
+      throw new NotFoundException(
+        'O contrato assinado ainda não foi enviado pelo proprietário',
+      );
+    }
+
+    const nomeSeguro = basename(contrato.arquivo_contrato_assinado);
+    const caminhoArquivo = join(
+      process.cwd(),
+      'uploads',
+      'contratos',
+      nomeSeguro,
+    );
+
+    if (!existsSync(caminhoArquivo)) {
+      throw new NotFoundException('Arquivo não encontrado no servidor');
+    }
+
+    return res.sendFile(caminhoArquivo);
+  }
 
 }

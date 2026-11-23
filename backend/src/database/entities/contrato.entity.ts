@@ -167,6 +167,19 @@ pdf_assinado_path: string | null;
   })
   data_analise_cadastral: Date | null;
 
+@Column({
+    name: 'arquivo_contrato_assinado',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  arquivo_contrato_assinado: string | null;
 
+  @Column({
+    name: 'data_assinatura_final',
+    type: 'timestamp',
+    nullable: true,
+  })
+  data_assinatura_final: Date | null;
 }
 

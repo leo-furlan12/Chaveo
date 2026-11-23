@@ -300,6 +300,60 @@ function ConteudoCompletarContrato() {
       setSalvando(false);
     }
   }
+useEffect(() => {
+  if (!contrato) return;
+  if (
+    contrato.status !== "AGUARDANDO_REVISAO" &&
+    contrato.status !== "AGUARDANDO_ASSINATURAS"
+  ) {
+    return;
+  }
+
+  const intervalo = setInterval(async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (!token) return;
+      const resp = await fetch(`${apiUrl}/contratos/${contratoId}/dados`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        const dados = await resp.json();
+        setContrato(dados);
+      }
+    } catch {}
+  }, 5000);
+
+  return () => clearInterval(intervalo);
+}, [contrato, contratoId, apiUrl]);
+
+async function baixarDocumentoContrato(endpoint, nomeArquivo) {
+  try {
+    const token = sessionStorage.getItem("token");
+    const resp = await fetch(`${apiUrl}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!resp.ok) {
+      setErro(true);
+      setMensagem("Não foi possível abrir o arquivo.");
+      return;
+    }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    setErro(true);
+    setMensagem("Erro ao baixar o arquivo.");
+  }
+}
+
 
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
@@ -336,11 +390,95 @@ function ConteudoCompletarContrato() {
               </span>
             </div>
 
-            {contrato.status !== "PENDENTE_DADOS" ? (
-              <p className="text-center py-4 text-slate-600">
-                Este contrato não está aguardando preenchimento no momento.
-              </p>
-            ) : (
+           {contrato.status !== "PENDENTE_DADOS" ? (
+  <div className="space-y-4">
+    {contrato.status === "AGUARDANDO_REVISAO" && (
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-900">
+        <p className="font-bold">Ficha cadastral enviada para análise</p>
+        <p className="mt-1">
+          O proprietário está avaliando seus dados e documentos. Esta tela
+          atualiza automaticamente assim que houver uma resposta.
+        </p>
+      </div>
+    )}
+
+    {contrato.status === "CADASTRO_RECUSADO" && (
+      <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800">
+        <p className="font-bold">Cadastro recusado pelo proprietário</p>
+        {contrato.justificativa_analise && (
+          <p className="mt-1">
+            <strong>Motivo:</strong> {contrato.justificativa_analise}
+          </p>
+        )}
+      </div>
+    )}
+
+    {contrato.status === "AGUARDANDO_ASSINATURAS" && (
+      <div className="rounded-xl border border-teal/30 bg-teal/10 p-5 space-y-3">
+        <p className="font-bold text-teal text-base">
+          ✓ Cadastro aprovado pelo proprietário!
+        </p>
+        {contrato.justificativa_analise && (
+          <p className="text-xs text-slate-700">
+            <strong>Parecer:</strong> {contrato.justificativa_analise}
+          </p>
+        )}
+        <p className="text-sm text-slate-700">
+          O contrato já foi aprovado e agora aguarda apenas o envio da via
+          assinada pelo proprietário. Assim que ele anexar o documento, você
+          poderá visualizá-lo aqui.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            baixarDocumentoContrato(
+              `/contratos/${contratoId}/pdf`,
+              `contrato-${contratoId}-aprovado.pdf`
+            )
+          }
+          className="bg-ink text-white font-semibold px-4 py-2 rounded-lg text-xs"
+        >
+          Baixar cópia do contrato aprovado (PDF)
+        </button>
+      </div>
+    )}
+
+    {contrato.status === "CONCLUIDO" && (
+      <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 space-y-4">
+        <div>
+          <p className="font-bold text-emerald-900 text-base">
+            ✓ Contrato assinado enviado pelo proprietário!
+          </p>
+          <p className="text-xs text-emerald-800 mt-1">
+            O proprietário anexou o contrato final assinado
+            {contrato.data_assinatura_final
+              ? ` em ${new Date(
+                  contrato.data_assinatura_final
+                ).toLocaleString("pt-BR", {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                })}`
+              : ""}
+            . Seu contrato de locação está ativo.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            baixarDocumentoContrato(
+              `/contratos/${contratoId}/contrato-assinado`,
+              `contrato-${contratoId}-assinado.pdf`
+            )
+          }
+          className="w-full bg-teal text-white font-bold rounded-lg p-3 hover:opacity-90"
+        >
+          Visualizar / Baixar Contrato Assinado
+        </button>
+      </div>
+    )}
+  </div>
+) : (
               <>
                 {/* SEÇÃO 1: Renda, Ocupação e Documentos (Issue #49) */}
                 <section className="rounded-xl border border-slate-200 p-5 space-y-4">
