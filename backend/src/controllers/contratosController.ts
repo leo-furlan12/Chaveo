@@ -18,10 +18,10 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
-import { basename, join } from 'path';
-import { existsSync, mkdirSync, unlinkSync } from 'fs';
+import { basename, join, extname } from 'path';
+import { existsSync, mkdirSync, unlinkSync, readFileSync } from 'fs';
 //controller recebe requisisções http e encaminha
-
+const { diskStorage } = require('multer');
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -57,10 +57,13 @@ export class ContratosController {
       order: { id: 'DESC' },
     });
 
-    return contratos.map((contrato) => ({
-      ...contrato,
-      imovel: contrato.imovel
+   return contratos.map((contrato) => ({
+  ...contrato,
+  imovel: contrato.imovel
     ? {
+        id: contrato.imovel.id,
+        tipo: contrato.imovel.tipo,
+        status: contrato.imovel.status,
         cep: contrato.imovel.cep,
         logradouro: contrato.imovel.logradouro,
         numero: contrato.imovel.numero,
@@ -68,9 +71,16 @@ export class ContratosController {
         bairro: contrato.imovel.bairro,
         cidade: contrato.imovel.cidade,
         estado: contrato.imovel.estado,
+        proprietario: contrato.imovel.proprietario
+          ? {
+              nome: contrato.imovel.proprietario.nome,
+              telefone: (contrato.imovel.proprietario as any).telefone || null,
+              email: (contrato.imovel.proprietario as any).email || null,
+            }
+          : null,
       }
     : null,
-    }));
+}));
   }
 
   @Post()
@@ -97,42 +107,42 @@ export class ContratosController {
     // verifica se o imovel pertence ao usuario
     if (String(imovel.proprietario_id) !== String(usuarioId)) {
       const contratoExistente = await this.contratoRepository.findOne({
-      where: { imovel_id: imovel.id },
-      order: { id: 'DESC' },
-    });
+        where: { imovel_id: imovel.id },
+        order: { id: 'DESC' },
+      });
 
-    if (
-      contratoExistente &&
-      [
-        'RASCUNHO',
-        'AGUARDANDO_INQUILINO',
-        'PENDENTE_DADOS',
-        'AGUARDANDO_REVISAO',
-        'AGUARDANDO_ASSINATURAS',
-        'CONCLUIDO',
-      ].includes(contratoExistente.status)
-    ) {
-      throw new BadRequestException(
-        'Este imóvel já possui um contrato cadastrado ou em andamento.',
-      );
-    }
+      if (
+        contratoExistente &&
+        [
+          'RASCUNHO',
+          'AGUARDANDO_INQUILINO',
+          'PENDENTE_DADOS',
+          'AGUARDANDO_REVISAO',
+          'AGUARDANDO_ASSINATURAS',
+          'CONCLUIDO',
+        ].includes(contratoExistente.status)
+      ) {
+        throw new BadRequestException(
+          'Este imóvel já possui um contrato cadastrado ou em andamento.',
+        );
+      }
       throw new ForbiddenException('Este imóvel não pertence a você');
     }
-    
+
 
     // pega os dados do aluguel
-const {
-  valor_aluguel,
-  indice_reajuste,
-  data_inicio,
-  data_fim,
-  dia_vencimento,
-  cpf_locatario,
-  despesas_inclusas,
-  garantia,
-  tipo_caucao,
-  valor_caucao,
-} = dados;
+    const {
+      valor_aluguel,
+      indice_reajuste,
+      data_inicio,
+      data_fim,
+      dia_vencimento,
+      cpf_locatario,
+      despesas_inclusas,
+      garantia,
+      tipo_caucao,
+      valor_caucao,
+    } = dados;
 
     // verifica se todos os campos foram preenchidos
     if (
@@ -187,24 +197,46 @@ const {
       );
     }
     // verifica se o cpf do inquilino foi informado corretamente
-    if (
-      typeof cpf_locatario !== 'string' ||
-      !/^\d{11}$/.test(cpf_locatario)
-    ) {
-      throw new BadRequestException(
-        'O CPF do inquilino deve conter 11 números',
-      );
+    const cpfLimpo = String(cpf_locatario || '').replace(/\D/g, '');
+    if (cpfLimpo.length !== 11) {
+      throw new BadRequestException('Informe um CPF válido com 11 dígitos');
     }
-    // procura o usuario que esta criando o contrato
-    const proprietario = await this.usuarioRepository.findOne({
-      where: { id: String(usuarioId) },
+
+    // impede que o proprietário coloque o próprio CPF
+    const locador = await this.usuarioRepository.findOne({
+      where: { id: usuarioId },
     });
 
-    // impede que o proprietario indique o proprio cpf
-    if (proprietario?.cpf === cpf_locatario) {
+    if (locador && locador.cpf === cpfLimpo) {
       throw new BadRequestException(
-        'O proprietário não pode ser o inquilino do próprio contrato',
+        'Você não pode informar o seu próprio CPF como inquilino.',
       );
+    }
+
+    // se o CPF já existir no banco, verifica se possui perfil INQUILINO
+    const usuarioDestino = await this.usuarioRepository.findOne({
+      where: { cpf: cpfLimpo },
+    });
+
+    if (usuarioDestino) {
+      const perfisDestino: Array<{ nome: string }> =
+        await this.usuarioRepository.query(
+          `SELECT p.nome
+           FROM perfis p
+           INNER JOIN usuarios_perfis up ON up.perfil_id = p.id
+           WHERE up.usuario_id = $1`,
+          [usuarioDestino.id],
+        );
+
+      const nomesPerfis = perfisDestino.map((p) =>
+        String(p.nome).toUpperCase(),
+      );
+
+      if (!nomesPerfis.includes('INQUILINO')) {
+        throw new BadRequestException(
+          'O CPF informado pertence a um proprietário e não pode ser cadastrado como inquilino.',
+        );
+      }
     }
     // verifica as despesas selecionadas
     const despesasPermitidas = [
@@ -226,11 +258,11 @@ const {
     }
 
     // verifica se o indice de reajuste é valido
-const indicesPermitidos = ['IPCA', 'IGP-M', 'INCC'];
+    const indicesPermitidos = ['IPCA', 'IGP-M', 'INCC'];
 
-if (!indicesPermitidos.includes(indice_reajuste)) {
-  throw new BadRequestException('Índice de reajuste inválido');
-}
+    if (!indicesPermitidos.includes(indice_reajuste)) {
+      throw new BadRequestException('Índice de reajuste inválido');
+    }
     // verifica a garantia escolhida
     const garantiasPermitidas = ['fiador', 'seguro', 'caucao', 'nenhuma'];
 
@@ -271,11 +303,11 @@ if (!indicesPermitidos.includes(indice_reajuste)) {
       locatario_id: null,
       status: 'RASCUNHO',
       valor_aluguel: valor_aluguel.toFixed(2),
-        indice_reajuste: indice_reajuste,
+      indice_reajuste: indice_reajuste,
       data_inicio: data_inicio,
       data_fim: data_fim,
       dia_vencimento: dia_vencimento,
-      cpf_locatario: cpf_locatario,
+      cpf_locatario: cpfLimpo,
       despesas_inclusas: despesas_inclusas,
       garantia: garantia,
       tipo_caucao: tipoCaucaoFinal,
@@ -339,66 +371,66 @@ if (!indicesPermitidos.includes(indice_reajuste)) {
     };
   }
 
-// consulta os dados de um convite
-@Get('convite/:token')
-@UseGuards(AuthGuard)
-async consultarConvite(
-  @Param('token') token: string,
-  @Req() request: Request,
-) {
-  const usuarioId = String((request as any).user.sub);
+  // consulta os dados de um convite
+  @Get('convite/:token')
+  @UseGuards(AuthGuard)
+  async consultarConvite(
+    @Param('token') token: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
 
-  // procura o contrato pelo token
- const contrato = await this.contratoRepository.findOne({
-  where: { convite_token: token },
-  relations: { imovel: true },
-});
+    // procura o contrato pelo token
+    const contrato = await this.contratoRepository.findOne({
+      where: { convite_token: token },
+      relations: { imovel: true },
+    });
 
-  if (!contrato) {
-    throw new NotFoundException('Convite não encontrado');
+    if (!contrato) {
+      throw new NotFoundException('Convite não encontrado');
+    }
+
+    // verifica se o convite ainda esta disponivel
+    if (contrato.status !== 'AGUARDANDO_INQUILINO') {
+      throw new BadRequestException('Este convite não está disponível');
+    }
+
+    // procura o usuario logado
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: usuarioId },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    // verifica se o convite pertence ao inquilino
+    if (usuario.cpf !== contrato.cpf_locatario) {
+      throw new ForbiddenException('Este convite não foi destinado a você');
+    }
+
+    // retorna apenas os dados necessarios
+    return {
+      id: contrato.id,
+      status: contrato.status,
+      valor_aluguel: contrato.valor_aluguel,
+      indice_reajuste: contrato.indice_reajuste,
+      despesas_inclusas: contrato.despesas_inclusas,
+      garantia: contrato.garantia,
+      tipo_caucao: contrato.tipo_caucao,
+      valor_caucao: contrato.valor_caucao,
+      data_inicio: contrato.data_inicio,
+      data_fim: contrato.data_fim,
+      dia_vencimento: contrato.dia_vencimento,
+      imovel: {
+        logradouro: contrato.imovel.logradouro,
+        numero: contrato.imovel.numero,
+        bairro: contrato.imovel.bairro,
+        cidade: contrato.imovel.cidade,
+        estado: contrato.imovel.estado,
+      },
+    };
   }
-
-  // verifica se o convite ainda esta disponivel
-  if (contrato.status !== 'AGUARDANDO_INQUILINO') {
-    throw new BadRequestException('Este convite não está disponível');
-  }
-
-  // procura o usuario logado
-  const usuario = await this.usuarioRepository.findOne({
-    where: { id: usuarioId },
-  });
-
-  if (!usuario) {
-    throw new NotFoundException('Usuário não encontrado');
-  }
-
-  // verifica se o convite pertence ao inquilino
-  if (usuario.cpf !== contrato.cpf_locatario) {
-    throw new ForbiddenException('Este convite não foi destinado a você');
-  }
-
-  // retorna apenas os dados necessarios
-  return {
-    id: contrato.id,
-    status: contrato.status,
-    valor_aluguel: contrato.valor_aluguel,
-    indice_reajuste: contrato.indice_reajuste,
-    despesas_inclusas: contrato.despesas_inclusas,
-    garantia: contrato.garantia,
-    tipo_caucao: contrato.tipo_caucao,
-    valor_caucao: contrato.valor_caucao,
-    data_inicio: contrato.data_inicio,
-    data_fim: contrato.data_fim,
-    dia_vencimento: contrato.dia_vencimento,
-    imovel: {
-      logradouro: contrato.imovel.logradouro,
-      numero: contrato.imovel.numero,
-      bairro: contrato.imovel.bairro,
-      cidade: contrato.imovel.cidade,
-      estado: contrato.imovel.estado,
-    },
-  };
-}
 
   @Post('convite/:token/aceitar')
   @UseGuards(AuthGuard)
@@ -463,8 +495,8 @@ async consultarConvite(
     // associa o usuario logado ao contrato
     contrato.locatario_id = usuarioId;
 
-   // aguarda os dados adicionais do contrato
-contrato.status = 'PENDENTE_DADOS';
+    // aguarda os dados adicionais do contrato
+    contrato.status = 'PENDENTE_DADOS';
 
     // invalida o convite depois do uso
     contrato.convite_token = null;
@@ -478,7 +510,7 @@ contrato.status = 'PENDENTE_DADOS';
     };
   }
 
-  
+
   // inquilino cadastra os dados do fiador
   @Post(':id/fiador')
   @UseGuards(AuthGuard)
@@ -553,7 +585,7 @@ contrato.status = 'PENDENTE_DADOS';
     };
   }
 
-  
+
   // proprietario cadastra os dados do seguro fianca
   @Post(':id/seguro')
   @UseGuards(AuthGuard)
@@ -646,6 +678,16 @@ contrato.status = 'PENDENTE_DADOS';
       );
     }
 
+    if (
+      !contrato.renda_mensal_locatario ||
+      !contrato.ocupacao_locatario ||
+      !Array.isArray(contrato.documentos_locatario) ||
+      contrato.documentos_locatario.length < 3
+    ) {
+      throw new BadRequestException(
+        'Preencha a ficha cadastral e anexe todos os 3 documentos obrigatórios antes de concluir',
+      );
+    }
     // verifica os dados conforme a garantia
     if (contrato.garantia === 'fiador') {
       if (
@@ -673,6 +715,8 @@ contrato.status = 'PENDENTE_DADOS';
     } else if (contrato.garantia !== 'nenhuma') {
       throw new BadRequestException('Garantia inválida');
     }
+
+    
 
     // libera o contrato para revisao
     contrato.status = 'AGUARDANDO_REVISAO';
@@ -735,39 +779,39 @@ contrato.status = 'PENDENTE_DADOS';
       data_analise_cadastral: contrato.data_analise_cadastral,
       arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
       data_assinatura_final: contrato.data_assinatura_final || null,
-      
+
       locador: contrato.locador
         ? {
-            nome: contrato.locador.nome,
-            cpf: contrato.locador.cpf,
-            rg: contrato.locador.rg,
-            nacionalidade: contrato.locador.nacionalidade,
-            estado_civil: contrato.locador.estado_civil,
-            profissao: contrato.locador.profissao,
-          }
+          nome: contrato.locador.nome,
+          cpf: contrato.locador.cpf,
+          rg: contrato.locador.rg,
+          nacionalidade: contrato.locador.nacionalidade,
+          estado_civil: contrato.locador.estado_civil,
+          profissao: contrato.locador.profissao,
+        }
         : null,
       locatario: contrato.locatario
         ? {
-            nome: contrato.locatario.nome,
-            cpf: contrato.locatario.cpf,
-            rg: contrato.locatario.rg,
-            nacionalidade: contrato.locatario.nacionalidade,
-            estado_civil: contrato.locatario.estado_civil,
-            profissao: contrato.locatario.profissao,
-          }
+          nome: contrato.locatario.nome,
+          cpf: contrato.locatario.cpf,
+          rg: contrato.locatario.rg,
+          nacionalidade: contrato.locatario.nacionalidade,
+          estado_civil: contrato.locatario.estado_civil,
+          profissao: contrato.locatario.profissao,
+        }
         : null,
       imovel: contrato.imovel
         ? {
-            id: contrato.imovel.id,
-            cep: contrato.imovel.cep,
-            logradouro: contrato.imovel.logradouro,
-            numero: contrato.imovel.numero,
-            complemento: contrato.imovel.complemento,
-            bairro: contrato.imovel.bairro,
-            cidade: contrato.imovel.cidade,
-            estado: contrato.imovel.estado,
-            tipo: contrato.imovel.tipo,
-          }
+          id: contrato.imovel.id,
+          cep: contrato.imovel.cep,
+          logradouro: contrato.imovel.logradouro,
+          numero: contrato.imovel.numero,
+          complemento: contrato.imovel.complemento,
+          bairro: contrato.imovel.bairro,
+          cidade: contrato.imovel.cidade,
+          estado: contrato.imovel.estado,
+          tipo: contrato.imovel.tipo,
+        }
         : null,
       valor_aluguel: contrato.valor_aluguel,
       data_inicio: contrato.data_inicio,
@@ -795,15 +839,15 @@ contrato.status = 'PENDENTE_DADOS';
   ) {
     const usuarioId = String((request as any).user.sub);
 
-  // busca o contrato com os dados dos usuarios e do imovel
-const contrato = await this.contratoRepository.findOne({
-  where: { id },
-  relations: {
-    locador: true,
-    locatario: true,
-    imovel: true,
-  },
-});
+    // busca o contrato com os dados dos usuarios e do imovel
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+      relations: {
+        locador: true,
+        locatario: true,
+        imovel: true,
+      },
+    });
 
     if (!contrato) {
       throw new NotFoundException('Contrato não encontrado');
@@ -819,83 +863,83 @@ const contrato = await this.contratoRepository.findOne({
       );
     }
 
-   
-return {
-  id: contrato.id,
-  status: contrato.status,
-  convite_token: contrato.convite_token,
-  cpf_locatario: contrato.cpf_locatario,
-  indice_reajuste: contrato.indice_reajuste,
-  renda_mensal_locatario: contrato.renda_mensal_locatario,
-  ocupacao_locatario: contrato.ocupacao_locatario,
-  documentos_locatario: contrato.documentos_locatario || [],
-  status_analise_cadastral: contrato.status_analise_cadastral,
-  justificativa_analise: contrato.justificativa_analise,
-  data_analise_cadastral: contrato.data_analise_cadastral,
-  arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
-  data_assinatura_final: contrato.data_assinatura_final || null,
 
-  // dados do proprietario
-  locador: contrato.locador
+    return {
+      id: contrato.id,
+      status: contrato.status,
+      convite_token: contrato.convite_token,
+      cpf_locatario: contrato.cpf_locatario,
+      indice_reajuste: contrato.indice_reajuste,
+      renda_mensal_locatario: contrato.renda_mensal_locatario,
+      ocupacao_locatario: contrato.ocupacao_locatario,
+      documentos_locatario: contrato.documentos_locatario || [],
+      status_analise_cadastral: contrato.status_analise_cadastral,
+      justificativa_analise: contrato.justificativa_analise,
+      data_analise_cadastral: contrato.data_analise_cadastral,
+      arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
+      data_assinatura_final: contrato.data_assinatura_final || null,
+
+      // dados do proprietario
+      locador: contrato.locador
         ? {
-            nome: contrato.locador.nome,
-            cpf: contrato.locador.cpf,
-            rg: contrato.locador.rg,
-            data_nascimento:
-              (contrato.locador as any).data_nascimento || null,
-            nacionalidade: contrato.locador.nacionalidade,
-            estado_civil: contrato.locador.estado_civil,
-            profissao: contrato.locador.profissao,
-            email: (contrato.locador as any).email || null,
-            telefone: (contrato.locador as any).telefone || null,
-          }
+          nome: contrato.locador.nome,
+          cpf: contrato.locador.cpf,
+          rg: contrato.locador.rg,
+          data_nascimento:
+            (contrato.locador as any).data_nascimento || null,
+          nacionalidade: contrato.locador.nacionalidade,
+          estado_civil: contrato.locador.estado_civil,
+          profissao: contrato.locador.profissao,
+          email: (contrato.locador as any).email || null,
+          telefone: (contrato.locador as any).telefone || null,
+        }
         : null,
       locatario: contrato.locatario
         ? {
-            nome: contrato.locatario.nome,
-            cpf: contrato.locatario.cpf,
-            rg: contrato.locatario.rg,
-            data_nascimento:
-              (contrato.locatario as any).data_nascimento || null,
-            nacionalidade: contrato.locatario.nacionalidade,
-            estado_civil: contrato.locatario.estado_civil,
-            profissao: contrato.locatario.profissao,
-            email: (contrato.locatario as any).email || null,
-            telefone: (contrato.locatario as any).telefone || null,
-          }
+          nome: contrato.locatario.nome,
+          cpf: contrato.locatario.cpf,
+          rg: contrato.locatario.rg,
+          data_nascimento:
+            (contrato.locatario as any).data_nascimento || null,
+          nacionalidade: contrato.locatario.nacionalidade,
+          estado_civil: contrato.locatario.estado_civil,
+          profissao: contrato.locatario.profissao,
+          email: (contrato.locatario as any).email || null,
+          telefone: (contrato.locatario as any).telefone || null,
+        }
         : null,
 
-  // dados do imovel
-  imovel: {
-    cep: contrato.imovel.cep,
-    logradouro: contrato.imovel.logradouro,
-    numero: contrato.imovel.numero,
-    complemento: contrato.imovel.complemento,
-    bairro: contrato.imovel.bairro,
-    cidade: contrato.imovel.cidade,
-    estado: contrato.imovel.estado,
-  },
+      // dados do imovel
+      imovel: {
+        cep: contrato.imovel.cep,
+        logradouro: contrato.imovel.logradouro,
+        numero: contrato.imovel.numero,
+        complemento: contrato.imovel.complemento,
+        bairro: contrato.imovel.bairro,
+        cidade: contrato.imovel.cidade,
+        estado: contrato.imovel.estado,
+      },
 
-  // dados da locacao
-  valor_aluguel: contrato.valor_aluguel,
-  data_inicio: contrato.data_inicio,
-  data_fim: contrato.data_fim,
-  dia_vencimento: contrato.dia_vencimento,
-  despesas_inclusas: contrato.despesas_inclusas,
+      // dados da locacao
+      valor_aluguel: contrato.valor_aluguel,
+      data_inicio: contrato.data_inicio,
+      data_fim: contrato.data_fim,
+      dia_vencimento: contrato.dia_vencimento,
+      despesas_inclusas: contrato.despesas_inclusas,
 
-  // dados da garantia
-  garantia: contrato.garantia,
-  tipo_caucao: contrato.tipo_caucao,
-  valor_caucao: contrato.valor_caucao,
+      // dados da garantia
+      garantia: contrato.garantia,
+      tipo_caucao: contrato.tipo_caucao,
+      valor_caucao: contrato.valor_caucao,
 
-  fiador_nome: contrato.fiador_nome,
-  fiador_cpf: contrato.fiador_cpf,
-  fiador_qualificacao: contrato.fiador_qualificacao,
-  fiador_imovel: contrato.fiador_imovel,
+      fiador_nome: contrato.fiador_nome,
+      fiador_cpf: contrato.fiador_cpf,
+      fiador_qualificacao: contrato.fiador_qualificacao,
+      fiador_imovel: contrato.fiador_imovel,
 
-  seguro_seguradora: contrato.seguro_seguradora,
-  seguro_apolice: contrato.seguro_apolice,
-};
+      seguro_seguradora: contrato.seguro_seguradora,
+      seguro_apolice: contrato.seguro_apolice,
+    };
 
   }
 
@@ -920,17 +964,17 @@ return {
       data_fim: contrato.data_fim,
       imovel: contrato.imovel
         ? {
-            logradouro: contrato.imovel.logradouro,
-            numero: contrato.imovel.numero,
-            bairro: contrato.imovel.bairro,
-            cidade: contrato.imovel.cidade,
-            estado: contrato.imovel.estado,
-          }
+          logradouro: contrato.imovel.logradouro,
+          numero: contrato.imovel.numero,
+          bairro: contrato.imovel.bairro,
+          cidade: contrato.imovel.cidade,
+          estado: contrato.imovel.estado,
+        }
         : null,
     }));
   }
 
-  
+
   // proprietario aprova os dados do contrato
   @Post(':id/aprovar')
   @UseGuards(AuthGuard)
@@ -973,78 +1017,84 @@ return {
     };
   }
 
-// gera o pdf do contrato
-@Get(':id/pdf')
-@UseGuards(AuthGuard)
-async gerarPdf(
-  @Param('id') id: string,
-  @Req() request: Request,
-  @Res() response: Response,
-) {
-  const usuarioId = String((request as any).user.sub);
-
-  // busca o contrato com os dados das pessoas e do imovel
-  const contrato = await this.contratoRepository.findOne({
-    where: { id },
-    relations: {
-      locador: true,
-      locatario: true,
-      imovel: true,
-    },
-  });
-
-  if (!contrato) {
-    throw new NotFoundException('Contrato não encontrado');
-  }
-
-  // somente o proprietario e o inquilino podem acessar
-  if (
-    String(contrato.locador_id) !== usuarioId &&
-    String(contrato.locatario_id) !== usuarioId
+  // gera o pdf do contrato
+  @Get(':id/pdf')
+  @UseGuards(AuthGuard)
+  async gerarPdf(
+    @Param('id') id: string,
+    @Req() request: Request,
+    @Res() response: Response,
   ) {
-    throw new ForbiddenException('Você não pode acessar este contrato');
+    const usuarioId = String((request as any).user.sub);
+
+    // busca o contrato com os dados das pessoas e do imovel
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+      relations: {
+        locador: true,
+        locatario: true,
+        imovel: true,
+      },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    // somente o proprietario e o inquilino podem acessar
+    if (
+      String(contrato.locador_id) !== usuarioId &&
+      String(contrato.locatario_id) !== usuarioId
+    ) {
+      throw new ForbiddenException('Você não pode acessar este contrato');
+    }
+
+    // impede gerar um contrato que ainda nao foi aprovado
+    if (
+      contrato.status !== 'AGUARDANDO_ASSINATURAS' &&
+      contrato.status !== 'CONCLUIDO'
+    ) {
+      throw new BadRequestException('Este contrato ainda não foi aprovado');
+    }
+
+    // verifica se existem os dados necessarios
+    if (!contrato.locador || !contrato.locatario || !contrato.imovel) {
+      throw new BadRequestException('Faltam dados para gerar o contrato');
+    }
+
+
+    // configura a resposta para baixar o pdf
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="contrato-${id}.pdf"`,
+    );
+
+    // cria o documento pdf
+    const pdf = new PDFDocument({ size: 'A4', margin: 50 });
+
+    // envia o pdf para o navegador
+    pdf.pipe(response);
+
+    // coloca as informacoes do contrato
+    gerarConteudoContrato(pdf, contrato);
+
+    // finaliza o arquivo
+    pdf.end();
+
   }
-
-  // impede gerar um contrato que ainda nao foi aprovado
-  if (
-    contrato.status !== 'AGUARDANDO_ASSINATURAS' &&
-    contrato.status !== 'CONCLUIDO'
-  ) {
-    throw new BadRequestException('Este contrato ainda não foi aprovado');
-  }
-
-  // verifica se existem os dados necessarios
-  if (!contrato.locador || !contrato.locatario || !contrato.imovel) {
-    throw new BadRequestException('Faltam dados para gerar o contrato');
-  }
-
-
-  // configura a resposta para baixar o pdf
-  response.setHeader('Content-Type', 'application/pdf');
-  response.setHeader(
-    'Content-Disposition',
-    `attachment; filename="contrato-${id}.pdf"`,
-  );
-
-  // cria o documento pdf
-  const pdf = new PDFDocument({ size: 'A4', margin: 50 });
-
-  // envia o pdf para o navegador
-  pdf.pipe(response);
-
-  // coloca as informacoes do contrato
-  gerarConteudoContrato(pdf, contrato);
-
-  // finaliza o arquivo
-  pdf.end();
-
-}
-// 1. Inquilino envia renda, ocupação e documentos comprobatórios
+  // inquilino envia renda, ocupação e documentos comprobatórios
   @Post(':id/ficha-cadastral')
   @UseGuards(AuthGuard)
   @UseInterceptors(
     FilesInterceptor('documentos', 5, {
-      dest: './uploads/contratos',
+      storage: diskStorage({
+        destination: './uploads/contratos',
+        filename: (_req: any, file: any, cb: any) => {
+          const unico = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, `${unico}${extname(file.originalname).toLowerCase()}`);
+        },
+      }),
     }),
   )
   async enviarFichaCadastral(
@@ -1164,7 +1214,18 @@ async gerarPdf(
       throw new NotFoundException('Arquivo não encontrado no servidor');
     }
 
+    const { mime, ext } = this.detectarMimeEExtensao(caminhoArquivo);
+    const nomeComExtensao = nomeSeguro.includes('.')
+      ? nomeSeguro
+      : `${nomeSeguro}${ext}`;
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${nomeComExtensao}"`,
+    );
     return res.sendFile(caminhoArquivo);
+
   }
 
   // proprietário aprova ou recusa a análise cadastral com justificativa
@@ -1232,10 +1293,16 @@ async gerarPdf(
   @Post(':id/upload-assinatura')
   @UseGuards(AuthGuard)
   @UseInterceptors(
-    FileInterceptor('arquivo', {
-      dest: './uploads/contratos',
+  FileInterceptor('arquivo', {
+    storage: diskStorage({
+      destination: './uploads/contratos',
+      filename: (_req: any, file: any, cb: any) => {
+        const unico = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        cb(null, `${unico}${extname(file.originalname).toLowerCase()}`);
+      },
     }),
-  )
+  }),
+)
   async uploadContratoAssinado(
     @Param('id') id: string,
     @UploadedFile() arquivo: any,
@@ -1283,7 +1350,7 @@ async gerarPdf(
             basename(contrato.arquivo_contrato_assinado),
           ),
         );
-      } catch {}
+      } catch { }
     }
 
     contrato.arquivo_contrato_assinado = arquivo.filename;
@@ -1353,6 +1420,16 @@ async gerarPdf(
       throw new NotFoundException('Arquivo não encontrado no servidor');
     }
 
+    const { mime, ext } = this.detectarMimeEExtensao(caminhoArquivo);
+    const nomeComExtensao = nomeSeguro.includes('.')
+      ? nomeSeguro
+      : `${nomeSeguro}${ext}`;
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${nomeComExtensao}"`,
+    );
     return res.sendFile(caminhoArquivo);
   }
 
@@ -1369,6 +1446,7 @@ async gerarPdf(
     const contrato = await this.contratoRepository.findOne({
       where: { id },
     });
+
 
     if (!contrato) {
       throw new NotFoundException('Contrato não encontrado');
@@ -1392,12 +1470,47 @@ async gerarPdf(
       if (cpfLimpo.length !== 11) {
         throw new BadRequestException('Informe um CPF válido com 11 dígitos');
       }
+
+      const locador = await this.usuarioRepository.findOne({
+        where: { id: usuarioId },
+      });
+
+      if (locador && locador.cpf === cpfLimpo) {
+        throw new BadRequestException(
+          'Você não pode informar o seu próprio CPF como inquilino.',
+        );
+      }
+
+      const usuarioDestino = await this.usuarioRepository.findOne({
+        where: { cpf: cpfLimpo },
+      });
+
+      if (usuarioDestino) {
+        const perfisDestino: Array<{ nome: string }> =
+          await this.usuarioRepository.query(
+            `SELECT p.nome
+             FROM perfis p
+             INNER JOIN usuarios_perfis up ON up.perfil_id = p.id
+             WHERE up.usuario_id = $1`,
+            [usuarioDestino.id],
+          );
+
+        const nomesPerfis = perfisDestino.map((p) =>
+          String(p.nome).toUpperCase(),
+        );
+
+        if (!nomesPerfis.includes('INQUILINO')) {
+          throw new BadRequestException(
+            'O CPF informado pertence a um proprietário e não pode ser cadastrado como inquilino.',
+          );
+        }
+      }
+
       contrato.cpf_locatario = cpfLimpo;
     }
-
     if (body.valor_aluguel !== undefined) {
       contrato.valor_aluguel = String(Number(body.valor_aluguel));
-    
+
     }
     if (body.data_inicio !== undefined) {
       contrato.data_inicio = body.data_inicio;
@@ -1483,5 +1596,77 @@ async gerarPdf(
       seguro_seguradora: contrato.seguro_seguradora,
       seguro_apolice: contrato.seguro_apolice,
     };
+  }
+
+
+  @Get('inquilino/meu-contrato')
+  @UseGuards(AuthGuard)
+  async buscarContratoDoInquilino(@Req() request: Request) {
+    const usuarioId = String((request as any).user.sub);
+
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: usuarioId },
+    });
+
+    const condicoes: any[] = [{ locatario_id: usuarioId }];
+    if (usuario?.cpf) {
+      condicoes.push({ cpf_locatario: usuario.cpf });
+    }
+
+    const contrato = await this.contratoRepository.findOne({
+      where: condicoes,
+      relations: {
+        imovel: true,
+        locador: true,
+      },
+      order: { id: 'DESC' },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Nenhum contrato encontrado para este inquilino');
+    }
+
+    return contrato;
+  }
+
+  private detectarMimeEExtensao(caminhoArquivo: string): {
+    mime: string;
+    ext: string;
+  } {
+    const buffer = readFileSync(caminhoArquivo);
+
+    // PDF (%PDF)
+    if (
+      buffer.length >= 4 &&
+      buffer[0] === 0x25 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x44 &&
+      buffer[3] === 0x46
+    ) {
+      return { mime: 'application/pdf', ext: '.pdf' };
+    }
+
+    // PNG (\x89PNG)
+    if (
+      buffer.length >= 4 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47
+    ) {
+      return { mime: 'image/png', ext: '.png' };
+    }
+
+    // JPEG (\xFF\xD8\xFF)
+    if (
+      buffer.length >= 3 &&
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff
+    ) {
+      return { mime: 'image/jpeg', ext: '.jpg' };
+    }
+
+    return { mime: 'application/pdf', ext: '.pdf' };
   }
 }
