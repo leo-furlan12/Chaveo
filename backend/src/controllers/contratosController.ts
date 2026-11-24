@@ -26,6 +26,7 @@ import { Res } from '@nestjs/common';
 import { Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { gerarConteudoContrato } from '../services/contratoPdf.service';
+import { AsaasCobrancaService } from '../services/asaas-cobranca.service';
 
 @Controller('contratos') //recebe solicitaçoes de cadastro de um contrato
 export class ContratosController {
@@ -38,7 +39,50 @@ export class ContratosController {
 
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>, //consultar usuarios no postgree
+
+    private readonly asaasCobrancaService: AsaasCobrancaService,
   ) { }
+
+  // Lista as parcelas do contrato para o histórico financeiro do inquilino.
+  @Get(':id/faturas')
+  @UseGuards(AuthGuard)
+  async listarFaturas(
+    @Param('id') contratoId: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+    return this.asaasCobrancaService.listarFaturasDoContrato(
+      contratoId,
+      usuarioId,
+    );
+  }
+
+  // Gera a assinatura mensal ou consulta a cobrança já criada para este contrato.
+  @Post(':id/cobranca')
+  @UseGuards(AuthGuard)
+  async gerarCobranca(
+    @Param('id') contratoId: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+    return this.asaasCobrancaService.gerarCobranca(contratoId, usuarioId);
+  }
+
+  // Carrega o QR Pix da parcela sem armazenar a imagem Base64 no banco.
+  @Get(':id/faturas/:faturaId/pix')
+  @UseGuards(AuthGuard)
+  async buscarPixDaFatura(
+    @Param('id') contratoId: string,
+    @Param('faturaId') faturaId: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+    return this.asaasCobrancaService.buscarPixDaFatura(
+      contratoId,
+      faturaId,
+      usuarioId,
+    );
+  }
 
   @Get('meus')
   @UseGuards(AuthGuard)
