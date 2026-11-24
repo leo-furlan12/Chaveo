@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Upload, FileCheck2, CheckCircle2, ArrowLeft, Link } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Upload, FileCheck2, CheckCircle2 } from "lucide-react"
 
 function ConteudoCompletarContrato() {
   const router = useRouter();
