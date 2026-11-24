@@ -1,0 +1,803 @@
+"use client";
+import { useState, useEffect, Suspense } from "react";
+import Checkbox from "../components/Checkbox";
+import Radio from "../components/Radio";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import Button from "../components/Button";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+
+function ConteudoCadastroContrato() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const imovelId = searchParams.get("imovelId");
+  const modoEdicao = searchParams.get("editar") === "true";
+  const modoNovo = searchParams.get("novo") === "true";
+
+  const apiUrl = (
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
+  ).replace(/\/$/, "");
+
+  const titulo = "font-display font-bold";
+  const tituloCentrado = "font-display font-bold text-2xl text-center";
+
+  const [etapa, setEtapa] = useState(1);
+  const [valorAluguel, setValorAluguel] = useState("");
+  const [despesas, setDespesas] = useState([]);
+  const [cpfInquilino, setCpfInquilino] = useState("");
+  const [garantia, setGarantia] = useState("");
+  const [tipoCaucao, setTipoCaucao] = useState("");
+  const [valorCaucao, setValorCaucao] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [diaVencimento, setDiaVencimento] = useState("");
+  const [indiceReajuste, setIndiceReajuste] = useState("");
+
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [verificandoExistente, setVerificandoExistente] = useState(true);
+
+  const [contratoId, setContratoId] = useState(
+    searchParams.get("contratoId")
+  );
+  const [conviteToken, setConviteToken] = useState("");
+  const [statusContrato, setStatusContrato] = useState("");
+  const [gerandoConvite, setGerandoConvite] = useState(false);
+  const [imovel, setImovel] = useState(null);
+
+//busca os dados do imóvel e verifica se já existe contrato cadastrado para ele
+  useEffect(() => {
+    if (!imovelId && !contratoId) {
+      setVerificandoExistente(false);
+      return;
+    }
+
+    async function inicializarTela() {
+      setVerificandoExistente(true);
+      const token = sessionStorage.getItem("token");
+
+      try {
+        if (imovelId) {
+          const respImovel = await fetch(`${apiUrl}/imoveis/${imovelId}`);
+          if (respImovel.ok) {
+            const dadosImovel = await respImovel.json();
+            setImovel(dadosImovel);
+          }
+
+          if (token) {
+            const respContrato = await fetch(
+              `${apiUrl}/contratos/imovel/${imovelId}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+
+            if (respContrato.ok) {
+              const contratoExistente = await respContrato.json();
+
+              // Se o contrato anterior foi recusado e clicou em "Iniciar Novo Contrato", libera o formulário limpo
+              if (
+                modoNovo &&
+                contratoExistente.status === "CADASTRO_RECUSADO"
+              ) {
+                return;
+              }
+
+              // Se está em modo edição antes do aceite do inquilino, preenche os campos para alterar
+              if (
+                modoEdicao &&
+                ["RASCUNHO", "AGUARDANDO_INQUILINO"].includes(
+                  contratoExistente.status
+                )
+              ) {
+                setContratoId(String(contratoExistente.id));
+                setStatusContrato(contratoExistente.status);
+                setConviteToken(contratoExistente.convite_token || "");
+                setValorAluguel(String(contratoExistente.valor_aluguel || ""));
+                setIndiceReajuste(contratoExistente.indice_reajuste || "");
+                setDespesas(contratoExistente.despesas_inclusas || []);
+                setCpfInquilino(contratoExistente.cpf_locatario || "");
+                setGarantia(contratoExistente.garantia || "");
+                setTipoCaucao(contratoExistente.tipo_caucao || "");
+                setValorCaucao(String(contratoExistente.valor_caucao || ""));
+                setDataInicio(
+                  contratoExistente.data_inicio
+                    ? String(contratoExistente.data_inicio).slice(0, 10)
+                    : ""
+                );
+                setDataFim(
+                  contratoExistente.data_fim
+                    ? String(contratoExistente.data_fim).slice(0, 10)
+                    : ""
+                );
+                setDiaVencimento(String(contratoExistente.dia_vencimento || ""));
+                return;
+              }
+
+              setContratoId(String(contratoExistente.id));
+              setStatusContrato(contratoExistente.status || "");
+              setConviteToken(contratoExistente.convite_token || "");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados iniciais:", err);
+      } finally {
+        setVerificandoExistente(false);
+      }
+    }
+
+    inicializarTela();
+  }, [imovelId, apiUrl, modoEdicao, modoNovo]);
+
+  function alterarDespesa(despesa) {
+    if (despesas.includes(despesa)) {
+      setDespesas(despesas.filter((item) => item !== despesa));
+    } else {
+      setDespesas([...despesas, despesa]);
+    }
+  }
+
+  function validarContrato() {
+    if (!imovelId) {
+      alert("Nenhum imóvel foi selecionado.");
+      return false;
+    }
+    if (!["IPCA", "IGP-M", "INCC"].includes(indiceReajuste)) {
+      alert("Selecione um índice de reajuste.");
+      setEtapa(1);
+      return false;
+    }
+    if (!valorAluguel || Number(valorAluguel) <= 0) {
+      alert("Informe um valor de aluguel válido.");
+      setEtapa(1);
+      return false;
+    }
+    if (cpfInquilino.length !== 11) {
+      alert("Informe um CPF com 11 dígitos.");
+      setEtapa(2);
+      return false;
+    }
+    if (!garantia) {
+      alert("Selecione uma garantia locatícia.");
+      setEtapa(3);
+      return false;
+    }
+    if (garantia === "caucao" && !tipoCaucao) {
+      alert("Selecione o tipo de caução.");
+      setEtapa(3);
+      return false;
+    }
+    if (garantia === "caucao" && tipoCaucao === "negociado") {
+      if (
+        !valorCaucao ||
+        Number(valorCaucao) <= 0 ||
+        Number(valorCaucao) > Number(valorAluguel) * 3
+      ) {
+        alert(
+          "A caução deve ser maior que zero e não ultrapassar três aluguéis."
+        );
+        setEtapa(3);
+        return false;
+      }
+    }
+    if (!dataInicio || !dataFim || dataFim <= dataInicio) {
+      alert("Informe datas válidas para a locação.");
+      setEtapa(4);
+      return false;
+    }
+    if (
+      !diaVencimento ||
+      Number(diaVencimento) < 1 ||
+      Number(diaVencimento) > 31
+    ) {
+      alert("Informe um dia de vencimento válido.");
+      setEtapa(4);
+      return false;
+    }
+    return true;
+  }
+
+  async function cadastrarContrato() {
+    if (!validarContrato()) return;
+
+    setMensagem("");
+    setErro(false);
+    setCarregando(true);
+
+    try {
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        setErro(true);
+        setMensagem("Você precisa fazer login novamente.");
+        return;
+      }
+
+      const urlRequisicao =
+   modoEdicao && contratoId
+     ? `${apiUrl}/contratos/${contratoId}`
+     : `${apiUrl}/contratos`;
+
+ const resposta = await fetch(urlRequisicao, {
+   method: modoEdicao && contratoId ? "PATCH" : "POST",
+   headers: {
+     "Content-Type": "application/json",
+     Authorization: `Bearer ${token}`,
+   },
+   body: JSON.stringify({
+     imovel_id: imovelId,
+     cpf_locatario: cpfInquilino,
+     valor_aluguel: Number(valorAluguel),
+     data_inicio: dataInicio,
+     data_fim: dataFim,
+     dia_vencimento: Number(diaVencimento),
+     indice_reajuste: indiceReajuste,
+     despesas_inclusas: despesas,
+     garantia: garantia,
+     tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
+     valor_caucao:
+       garantia === "caucao" && tipoCaucao === "negociado"
+         ? Number(valorCaucao)
+         : null,
+   }),
+ });
+
+      const dados = await resposta.json();
+      if (!resposta.ok) {
+        setErro(true);
+        setMensagem(
+          Array.isArray(dados.message)
+            ? dados.message.join(", ")
+            : dados.message || "Erro ao cadastrar contrato."
+        );
+        return;
+      }
+      if (modoEdicao && contratoId) {
+   router.push(`/DetalhesContrato?imovelId=${imovelId}`);
+   return;
+ }
+
+      const novoId = String(dados.contrato.id);
+      setContratoId(novoId);
+      setStatusContrato(dados.contrato.status || "RASCUNHO");
+      setMensagem(`Contrato cadastrado com sucesso! ID: ${novoId}`);
+
+      // Mantém imovelId e contratoId na URL caso dê F5
+      router.replace(
+        `/CadastroContrato?imovelId=${imovelId}&contratoId=${novoId}`
+      );
+
+      await gerarConvite(novoId);
+    } catch {
+      setErro(true);
+      setMensagem("Não foi possível conectar ao servidor.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function gerarConvite(id) {
+    const idAlvo = typeof id === "string" || typeof id === "number" ? id : contratoId;
+    if (!idAlvo) return;
+
+    setGerandoConvite(true);
+    setMensagem("");
+    setErro(false);
+
+    try {
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        setErro(true);
+        setMensagem("Você precisa fazer login novamente.");
+        return;
+      }
+
+      const resposta = await fetch(`${apiUrl}/contratos/${idAlvo}/convite`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        setErro(true);
+        setMensagem(dados.message || "Erro ao gerar convite.");
+        return;
+      }
+
+      setConviteToken(dados.convite_token);
+      setStatusContrato(dados.status || "AGUARDANDO_INQUILINO");
+      setMensagem("Convite gerado com sucesso!");
+    } catch {
+      setErro(true);
+      setMensagem("Não foi possível conectar ao servidor.");
+    } finally {
+      setGerandoConvite(false);
+    }
+  }
+
+  async function copiarConvite() {
+    const link = `${window.location.origin}/ConviteContrato?token=${conviteToken}`;
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setMensagem("Link copiado com sucesso!");
+    } catch {
+      setErro(true);
+      setMensagem("Não foi possível copiar o link.");
+    }
+  }
+
+  // Polling de status a cada 5 segundos
+  useEffect(() => {
+    if (!contratoId) return;
+
+    async function verificarStatus() {
+      try {
+        const token = sessionStorage.getItem("token");
+        if (!token) return;
+
+        const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/dados`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!resposta.ok) return;
+
+        const dados = await resposta.json();
+        setStatusContrato(dados.status);
+        if (dados.convite_token) {
+          setConviteToken(dados.convite_token);
+        }
+      } catch (erro) {
+        console.error("Erro ao verificar status:", erro);
+      }
+    }
+
+    verificarStatus();
+    const intervalo = setInterval(verificarStatus, 5000);
+    return () => clearInterval(intervalo);
+  }, [contratoId, apiUrl]);
+
+  if (verificandoExistente) {
+    return (
+      <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6 text-paper">
+        <p>Verificando contrato do imóvel...</p>
+      </main>
+    );
+  }
+
+  // TELA DE ACOMPANHAMENTO (aparece após cadastrar ou ao recarregar um imóvel que já possui contrato)
+  if ((conviteToken || contratoId) && !modoEdicao) {
+    const inquilinoConcluiu =
+      statusContrato === "AGUARDANDO_REVISAO" ||
+      statusContrato === "AGUARDANDO_ASSINATURAS" ||
+      statusContrato === "CONCLUIDO";
+
+    const contratoAprovado =
+      statusContrato === "AGUARDANDO_ASSINATURAS" ||
+      statusContrato === "CONCLUIDO";
+
+    return (
+      <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
+        <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
+          <h1 className="font-display text-2xl font-bold text-center">
+            Contrato cadastrado!
+          </h1>
+
+          <p className="text-center mt-3 text-sm">
+            {statusContrato === "AGUARDANDO_REVISAO"
+              ? "O inquilino concluiu o preenchimento. Revise o contrato para aprovar."
+              : contratoAprovado
+              ? "Este contrato já foi revisado e aprovado."
+              : "O cadastro do proprietário foi concluído. Agora estamos aguardando o inquilino."}
+          </p>
+
+          <h2 className="font-bold mt-8 mb-3">Progresso do contrato</h2>
+
+          <div className="flex gap-2">
+            <div className="h-2 flex-1 bg-teal rounded-full"></div>
+
+            <div
+              className={`h-2 flex-1 rounded-full ${
+                inquilinoConcluiu ? "bg-teal" : "bg-gray-300"
+              }`}
+            ></div>
+
+            <div
+              className={`h-2 flex-1 rounded-full ${
+                contratoAprovado ? "bg-teal" : "bg-gray-300"
+              }`}
+            ></div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-3 text-xs text-center">
+            <p>✓ Proprietário</p>
+
+            <p className="font-bold">
+              {inquilinoConcluiu
+                ? "✓ Inquilino concluiu"
+                : statusContrato === "PENDENTE_DADOS"
+                ? "Inquilino preenchendo"
+                : "Aguardando inquilino"}
+            </p>
+
+            <p className={contratoAprovado ? "font-bold text-teal" : ""}>
+              {contratoAprovado ? "✓ Aprovado" : "Finalização"}
+            </p>
+          </div>
+
+          {statusContrato === "AGUARDANDO_REVISAO" && (
+            <div className="mt-6">
+              <p className="text-sm text-center mb-3">
+                O inquilino concluiu o preenchimento. Agora você pode revisar o
+                contrato.
+              </p>
+
+              <Link
+                href={`/AnaliseCadastral?id=${contratoId}`}
+                className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
+              >
+                Revisar contrato
+              </Link>
+            </div>
+          )}
+
+          {contratoAprovado && (
+            <div className="mt-6">
+              <Link
+                href={`/AnaliseCadastral?id=${contratoId}`}
+                className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
+              >
+                Ver contrato aprovado / Baixar PDF
+              </Link>
+            </div>
+          )}
+
+          {statusContrato === "RASCUNHO" && !conviteToken && (
+            <div className="mt-6">
+              <Button
+                texto={gerandoConvite ? "Gerando convite..." : "Gerar convite"}
+                onClick={() => gerarConvite(contratoId)}
+                disabled={gerandoConvite}
+              />
+            </div>
+          )}
+
+          {conviteToken && statusContrato === "AGUARDANDO_INQUILINO" && (
+            <div>
+              <h2 className="font-bold mt-8">Convite para o inquilino</h2>
+
+              <p className="text-sm mt-2 mb-4">
+                Copie o link e envie para o inquilino continuar o cadastro.
+              </p>
+
+              <Button texto="Copiar link do convite" onClick={copiarConvite} />
+            </div>
+          )}
+
+          {mensagem && (
+            <p
+              role={erro ? "alert" : "status"}
+              className={`text-center text-sm mt-3 ${
+                erro ? "text-red-500" : "text-teal"
+              }`}
+            >
+              {mensagem}
+            </p>
+          )}
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between text-xs">
+            <Link href="/dashboard" className="text-slate-600 hover:underline">
+              ← Voltar para Dashboard
+            </Link>
+            {imovelId && (
+              <Link
+                href={`/DetalhesContrato?imovelId=${imovelId}`}
+                className="text-teal font-semibold hover:underline"
+              >
+                Ver detalhes completos →
+              </Link>
+            )}
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-slate-darker flex flex-col">
+      <section className="flex justify-center content-center">
+        <div className="w-100 bg-paper p-7 br-2 rounded-xl">
+          {/* informações do imóvel selecionado */}
+          <div className="mb-6 rounded-lg border border-slate-300 bg-slate-50 p-4">
+            <h2 className="font-display font-bold text-lg mb-3">
+              Imóvel selecionado
+            </h2>
+
+            {imovel ? (
+              <div className="text-sm space-y-2">
+                <p>
+                  <strong>Tipo:</strong> {imovel.tipo}
+                </p>
+                <p>
+                  <strong>Endereço:</strong> {imovel.logradouro},{" "}
+                  {imovel.numero}
+                  {imovel.complemento ? ` - ${imovel.complemento}` : ""}
+                </p>
+                <p>
+                  <strong>Bairro:</strong> {imovel.bairro}
+                </p>
+                <p>
+                  <strong>Cidade:</strong> {imovel.cidade}/{imovel.estado}
+                </p>
+                <p>
+                  <strong>CEP:</strong> {imovel.cep}
+                </p>
+                <p>
+                  <strong>Situação:</strong> {imovel.status}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Carregando informações do imóvel...
+              </p>
+            )}
+          </div>
+
+          <div className="mb-6">
+            <p>Etapa {etapa} de 4</p>
+            <div className="w-full h-2 bg-slate-200 rounded-full">
+              <div
+                className="h-full bg-teal rounded-full transition-all duration-300"
+                style={{ width: `${(etapa / 4) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <form>
+            {etapa === 1 && (
+              <div>
+                <h1 className={tituloCentrado}>Despesas e Valores</h1>
+                <h1 className={titulo}>Valor Mensal do Aluguel:</h1>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={valorAluguel}
+                  onChange={(e) => setValorAluguel(e.target.value)}
+                  className="bg-slate/10 p-3 rounded-lg w-full h-10"
+                />
+                <div className="mt-4 mb-4">
+                  <h1 className={titulo}>Índice de reajuste anual:</h1>
+                  <select
+                    value={indiceReajuste}
+                    onChange={(e) => setIndiceReajuste(e.target.value)}
+                    className="bg-slate/10 p-3 rounded-lg w-full h-10"
+                  >
+                    <option value="">Selecione o índice</option>
+                    <option value="IPCA">IPCA</option>
+                    <option value="IGP-M">IGP-M</option>
+                    <option value="INCC">INCC</option>
+                  </select>
+                  <p className="text-sm mt-2">
+                    O índice escolhido será utilizado para o reajuste anual do
+                    aluguel, quando aplicável.
+                  </p>
+                </div>
+                <h1 className={titulo}>Despesas Inclusas:</h1>
+                <Checkbox
+                  texto="Água"
+                  value="agua"
+                  checked={despesas.includes("agua")}
+                  onChange={() => alterarDespesa("agua")}
+                />
+                <Checkbox
+                  texto="Luz"
+                  value="luz"
+                  checked={despesas.includes("luz")}
+                  onChange={() => alterarDespesa("luz")}
+                />
+                <Checkbox
+                  texto="Internet"
+                  value="internet"
+                  checked={despesas.includes("internet")}
+                  onChange={() => alterarDespesa("internet")}
+                />
+                <Checkbox
+                  texto="Gás"
+                  value="gas"
+                  checked={despesas.includes("gas")}
+                  onChange={() => alterarDespesa("gas")}
+                />
+                <Checkbox
+                  texto="Condomínio"
+                  value="condominio"
+                  checked={despesas.includes("condominio")}
+                  onChange={() => alterarDespesa("condominio")}
+                />
+                <Checkbox
+                  texto="IPTU"
+                  value="iptu"
+                  checked={despesas.includes("iptu")}
+                  onChange={() => alterarDespesa("iptu")}
+                />
+                <p>Despesas selecionadas: {despesas.join(", ")}</p>
+              </div>
+            )}
+
+            {etapa === 2 && (
+              <div>
+                <h1 className={tituloCentrado}>Inquilino</h1>
+                <h1 className={titulo}>CPF do inquilino:</h1>
+                <input
+                  type="text"
+                  maxLength={11}
+                  value={cpfInquilino}
+                  onChange={(e) =>
+                    setCpfInquilino(e.target.value.replace(/\D/g, ""))
+                  }
+                  className="bg-slate/10 p-3 rounded-lg w-full h-10"
+                />
+              </div>
+            )}
+
+            {etapa === 3 && (
+              <div>
+                <h1 className={tituloCentrado}>Garantia Locatária</h1>
+                <h1 className={titulo}>Escolha Garantia:</h1>
+                <Radio
+                  texto="Fiador"
+                  name="garantia"
+                  value="fiador"
+                  checked={garantia === "fiador"}
+                  onChange={() => setGarantia("fiador")}
+                />
+                <Radio
+                  texto="Seguro-fiança"
+                  name="garantia"
+                  value="seguro"
+                  checked={garantia === "seguro"}
+                  onChange={() => setGarantia("seguro")}
+                />
+                <Radio
+                  texto="Caução"
+                  name="garantia"
+                  value="caucao"
+                  checked={garantia === "caucao"}
+                  onChange={() => setGarantia("caucao")}
+                />
+                <Radio
+                  texto="Sem garantia"
+                  name="garantia"
+                  value="nenhuma"
+                  checked={garantia === "nenhuma"}
+                  onChange={() => setGarantia("nenhuma")}
+                />
+                {garantia === "caucao" && (
+                  <div>
+                    <h1 className={titulo}>Escolher Caução:</h1>
+                    <Radio
+                      texto="Caução 3 Aluguéis"
+                      name="tipoCaucao"
+                      value="3"
+                      checked={tipoCaucao === "3"}
+                      onChange={() => setTipoCaucao("3")}
+                    />
+                    <Radio
+                      texto="Caução 2 Aluguéis"
+                      name="tipoCaucao"
+                      value="2"
+                      checked={tipoCaucao === "2"}
+                      onChange={() => setTipoCaucao("2")}
+                    />
+                    <Radio
+                      texto="Valor Negociado"
+                      name="tipoCaucao"
+                      value="negociado"
+                      checked={tipoCaucao === "negociado"}
+                      onChange={() => setTipoCaucao("negociado")}
+                    />
+                    {tipoCaucao === "negociado" && (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={valorCaucao}
+                        onChange={(e) => setValorCaucao(e.target.value)}
+                        className="bg-slate/10 p-3 rounded-lg w-full h-10"
+                        placeholder="Valor da caução"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {etapa === 4 && (
+              <div>
+                <h1 className={tituloCentrado}>Prazos</h1>
+                <h1 className={titulo}>Data de início da locação:</h1>
+                <input
+                  type="date"
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                />
+                <h1 className={titulo}>Data de término da locação:</h1>
+                <input
+                  type="date"
+                  min={dataInicio || undefined}
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                />
+                <h1 className={titulo}>Dia do vencimento do aluguel:</h1>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={diaVencimento}
+                  onChange={(e) => setDiaVencimento(e.target.value)}
+                  className="bg-slate/10 p-3 rounded-lg w-full h-10"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                texto="Voltar"
+                icone={<ArrowLeft size={18} />}
+                onClick={() => setEtapa(etapa - 1)}
+                disabled={etapa === 1}
+              />
+
+              {etapa < 4 ? (
+                <Button
+                  texto="Próximo"
+                  icone={<ArrowRight size={18} />}
+                  onClick={() => setEtapa(etapa + 1)}
+                />
+              ) : (
+                <Button
+                  texto={
+                  carregando
+                    ? "Salvando..."
+                    : modoEdicao
+                    ? "Salvar alterações"
+                    : "Cadastrar contrato"
+                }
+                  onClick={cadastrarContrato}
+                  disabled={carregando}
+                />
+              )}
+            </div>
+
+            {mensagem && (
+              <p
+                role={erro ? "alert" : "status"}
+                className={`text-center text-sm mt-3 ${
+                  erro ? "text-red-500" : "text-teal"
+                }`}
+              >
+                {mensagem}
+              </p>
+            )}
+          </form>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default function CadastroContrato() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink" />}>
+      <ConteudoCadastroContrato />
+    </Suspense>
+  );
+}

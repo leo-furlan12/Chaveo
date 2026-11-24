@@ -5,6 +5,7 @@ import {
 } from 'typeorm';
 
 @Entity('usuarios')
+
 export class Usuario {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: string;
@@ -32,6 +33,11 @@ export class Usuario {
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   telefone: string | null;
+
+  // Um usuário pode ser inquilino em vários contratos; guardar o Customer ID
+  // aqui evita cadastrar a mesma pessoa repetidamente no Asaas.
+  @Column({ type: 'varchar', length: 80, nullable: true, unique: true })
+  asaas_customer_id: string | null;
 
   @Column({ type: 'varchar', length: 255 })
   senha_hash: string;

@@ -1,15 +1,13 @@
-FROM node:24-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
-RUN npm run build
+EXPOSE 4000
 
-EXPOSE 3001
-
-CMD ["npm", "run", "start:prod"]
+CMD ["npm", "run", "start:dev"]
