@@ -1,29 +1,35 @@
 
 import {
-  Controller,
-  Post,
-  Get,
   Body,
+  Controller,
+  Get,
+  Param,
+  Post,
   Req,
+  Res,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
   BadRequestException,
-  ForbiddenException,
   NotFoundException,
+  ForbiddenException,
+  UploadedFile,
+  Patch
 } from '@nestjs/common';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import type { Request, Response } from 'express';
+import { basename, join } from 'path';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 //controller recebe requisisções http e encaminha
 
 
-import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contrato } from '../database/entities/contrato.entity';
 import { Imovel } from '../database/entities/imovel.entity';
 import { AuthGuard } from '../auth/auth.guard';
-import { Param } from '@nestjs/common'; //receber id do contrato por url
 import { randomBytes } from 'crypto'; // gera codigo aleatorio para convite
 import { Usuario } from '../database/entities/usuario.entity';
-import { Res } from '@nestjs/common';
-import { Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { gerarConteudoContrato } from '../services/contratoPdf.service';
 import { AsaasCobrancaService } from '../services/asaas-cobranca.service';
@@ -134,8 +140,29 @@ export class ContratosController {
 
     // verifica se o imovel pertence ao usuario
     if (String(imovel.proprietario_id) !== String(usuarioId)) {
+      const contratoExistente = await this.contratoRepository.findOne({
+      where: { imovel_id: imovel.id },
+      order: { id: 'DESC' },
+    });
+
+    if (
+      contratoExistente &&
+      [
+        'RASCUNHO',
+        'AGUARDANDO_INQUILINO',
+        'PENDENTE_DADOS',
+        'AGUARDANDO_REVISAO',
+        'AGUARDANDO_ASSINATURAS',
+        'CONCLUIDO',
+      ].includes(contratoExistente.status)
+    ) {
+      throw new BadRequestException(
+        'Este imóvel já possui um contrato cadastrado ou em andamento.',
+      );
+    }
       throw new ForbiddenException('Este imóvel não pertence a você');
     }
+    
 
     // pega os dados do aluguel
 const {
@@ -703,7 +730,106 @@ contrato.status = 'PENDENTE_DADOS';
     };
   }
 
-  
+  // Busca o contrato do imóvel selecionado pelo proprietário
+  @Get('imovel/:imovelId')
+  @UseGuards(AuthGuard)
+  async buscarPorImovel(
+    @Param('imovelId') imovelId: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const imovel = await this.imovelRepository.findOne({
+      where: { id: imovelId },
+    });
+
+    if (!imovel) {
+      throw new NotFoundException('Imóvel não encontrado');
+    }
+
+    if (String(imovel.proprietario_id) !== usuarioId) {
+      throw new ForbiddenException('Este imóvel não pertence a você');
+    }
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { imovel_id: imovelId, locador_id: usuarioId },
+      relations: {
+        locador: true,
+        locatario: true,
+        imovel: true,
+      },
+      order: { id: 'DESC' },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Nenhum contrato encontrado para este imóvel');
+    }
+
+    return {
+      id: contrato.id,
+      status: contrato.status,
+      convite_token: contrato.convite_token,
+      cpf_locatario: contrato.cpf_locatario,
+      indice_reajuste: contrato.indice_reajuste,
+      renda_mensal_locatario: contrato.renda_mensal_locatario,
+      ocupacao_locatario: contrato.ocupacao_locatario,
+      documentos_locatario: contrato.documentos_locatario || [],
+      status_analise_cadastral: contrato.status_analise_cadastral,
+      justificativa_analise: contrato.justificativa_analise,
+      data_analise_cadastral: contrato.data_analise_cadastral,
+      arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
+      data_assinatura_final: contrato.data_assinatura_final || null,
+      
+      locador: contrato.locador
+        ? {
+            nome: contrato.locador.nome,
+            cpf: contrato.locador.cpf,
+            rg: contrato.locador.rg,
+            nacionalidade: contrato.locador.nacionalidade,
+            estado_civil: contrato.locador.estado_civil,
+            profissao: contrato.locador.profissao,
+          }
+        : null,
+      locatario: contrato.locatario
+        ? {
+            nome: contrato.locatario.nome,
+            cpf: contrato.locatario.cpf,
+            rg: contrato.locatario.rg,
+            nacionalidade: contrato.locatario.nacionalidade,
+            estado_civil: contrato.locatario.estado_civil,
+            profissao: contrato.locatario.profissao,
+          }
+        : null,
+      imovel: contrato.imovel
+        ? {
+            id: contrato.imovel.id,
+            cep: contrato.imovel.cep,
+            logradouro: contrato.imovel.logradouro,
+            numero: contrato.imovel.numero,
+            complemento: contrato.imovel.complemento,
+            bairro: contrato.imovel.bairro,
+            cidade: contrato.imovel.cidade,
+            estado: contrato.imovel.estado,
+            tipo: contrato.imovel.tipo,
+          }
+        : null,
+      valor_aluguel: contrato.valor_aluguel,
+      data_inicio: contrato.data_inicio,
+      data_fim: contrato.data_fim,
+      dia_vencimento: contrato.dia_vencimento,
+      despesas_inclusas: contrato.despesas_inclusas,
+      garantia: contrato.garantia,
+      tipo_caucao: contrato.tipo_caucao,
+      valor_caucao: contrato.valor_caucao,
+      fiador_nome: contrato.fiador_nome,
+      fiador_cpf: contrato.fiador_cpf,
+      fiador_qualificacao: contrato.fiador_qualificacao,
+      fiador_imovel: contrato.fiador_imovel,
+      seguro_seguradora: contrato.seguro_seguradora,
+      seguro_apolice: contrato.seguro_apolice,
+    };
+  }
+
   // consulta os dados do contrato para completar o cadastro
   @Get(':id/dados')
   @UseGuards(AuthGuard)
@@ -741,28 +867,47 @@ const contrato = await this.contratoRepository.findOne({
 return {
   id: contrato.id,
   status: contrato.status,
+  convite_token: contrato.convite_token,
+  cpf_locatario: contrato.cpf_locatario,
+  indice_reajuste: contrato.indice_reajuste,
+  renda_mensal_locatario: contrato.renda_mensal_locatario,
+  ocupacao_locatario: contrato.ocupacao_locatario,
+  documentos_locatario: contrato.documentos_locatario || [],
+  status_analise_cadastral: contrato.status_analise_cadastral,
+  justificativa_analise: contrato.justificativa_analise,
+  data_analise_cadastral: contrato.data_analise_cadastral,
+  arquivo_contrato_assinado: contrato.arquivo_contrato_assinado || null,
+  data_assinatura_final: contrato.data_assinatura_final || null,
 
   // dados do proprietario
-  locador: {
-    nome: contrato.locador.nome,
-    cpf: contrato.locador.cpf,
-    rg: contrato.locador.rg,
-    nacionalidade: contrato.locador.nacionalidade,
-    estado_civil: contrato.locador.estado_civil,
-    profissao: contrato.locador.profissao,
-  },
-
-  // dados do inquilino
-  locatario: contrato.locatario
-    ? {
-        nome: contrato.locatario.nome,
-        cpf: contrato.locatario.cpf,
-        rg: contrato.locatario.rg,
-        nacionalidade: contrato.locatario.nacionalidade,
-        estado_civil: contrato.locatario.estado_civil,
-        profissao: contrato.locatario.profissao,
-      }
-    : null,
+  locador: contrato.locador
+        ? {
+            nome: contrato.locador.nome,
+            cpf: contrato.locador.cpf,
+            rg: contrato.locador.rg,
+            data_nascimento:
+              (contrato.locador as any).data_nascimento || null,
+            nacionalidade: contrato.locador.nacionalidade,
+            estado_civil: contrato.locador.estado_civil,
+            profissao: contrato.locador.profissao,
+            email: (contrato.locador as any).email || null,
+            telefone: (contrato.locador as any).telefone || null,
+          }
+        : null,
+      locatario: contrato.locatario
+        ? {
+            nome: contrato.locatario.nome,
+            cpf: contrato.locatario.cpf,
+            rg: contrato.locatario.rg,
+            data_nascimento:
+              (contrato.locatario as any).data_nascimento || null,
+            nacionalidade: contrato.locatario.nacionalidade,
+            estado_civil: contrato.locatario.estado_civil,
+            profissao: contrato.locatario.profissao,
+            email: (contrato.locatario as any).email || null,
+            telefone: (contrato.locatario as any).telefone || null,
+          }
+        : null,
 
   // dados do imovel
   imovel: {
@@ -938,4 +1083,449 @@ async gerarPdf(
   pdf.end();
 
 }
+// 1. Inquilino envia renda, ocupação e documentos comprobatórios
+  @Post(':id/ficha-cadastral')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('documentos', 5, {
+      dest: './uploads/contratos',
+    }),
+  )
+  async enviarFichaCadastral(
+    @Param('id') id: string,
+    @Body() body: any,
+    @UploadedFiles() arquivos: Array<any>,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locatario_id) !== usuarioId) {
+      throw new ForbiddenException('Você não é o inquilino deste contrato');
+    }
+
+    if (contrato.status !== 'PENDENTE_DADOS') {
+      throw new BadRequestException(
+        'Este contrato não está aberto para envio de ficha cadastral',
+      );
+    }
+
+    const rendaMensal = Number(body?.renda_mensal);
+    const ocupacao = String(body?.ocupacao || '').trim();
+
+    if (!rendaMensal || rendaMensal <= 0) {
+      throw new BadRequestException('Informe uma renda mensal válida');
+    }
+
+    if (!ocupacao) {
+      throw new BadRequestException('Informe sua ocupação ou profissão atual');
+    }
+
+    let tiposDocumentos: string[] = [];
+    if (body?.tipos_documentos) {
+      try {
+        tiposDocumentos = JSON.parse(body.tipos_documentos);
+      } catch {
+        tiposDocumentos = [];
+      }
+    }
+
+    const documentosExistentes = Array.isArray(contrato.documentos_locatario)
+      ? contrato.documentos_locatario
+      : [];
+
+    const novosDocumentos = (arquivos || []).map((arq, idx) => ({
+      tipo: tiposDocumentos[idx] || 'Comprovante',
+      nome_original: arq.originalname,
+      arquivo: arq.filename,
+      mimetype: arq.mimetype,
+    }));
+
+    const listaFinalDocumentos = [...documentosExistentes, ...novosDocumentos];
+
+    if (listaFinalDocumentos.length === 0) {
+      throw new BadRequestException(
+        'Anexe pelo menos um documento comprobatório (RG/CNH ou comprovante de renda)',
+      );
+    }
+
+    contrato.renda_mensal_locatario = rendaMensal;
+    contrato.ocupacao_locatario = ocupacao;
+    contrato.documentos_locatario = listaFinalDocumentos;
+    contrato.status_analise_cadastral = 'PENDENTE';
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message: 'Ficha cadastral e documentos salvos com sucesso!',
+      renda_mensal_locatario: contrato.renda_mensal_locatario,
+      ocupacao_locatario: contrato.ocupacao_locatario,
+      documentos_locatario: contrato.documentos_locatario,
+    };
+  }
+
+  // 2. Visualizar/baixar documento anexado pelo inquilino (protegido por JWT)
+  @Get(':id/documentos/:arquivo')
+  @UseGuards(AuthGuard)
+  async visualizarDocumento(
+    @Param('id') id: string,
+    @Param('arquivo') arquivo: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    const ehLocador = String(contrato.locador_id) === usuarioId;
+    const ehLocatario = String(contrato.locatario_id) === usuarioId;
+
+    if (!ehLocador && !ehLocatario) {
+      throw new ForbiddenException('Sem permissão para acessar este documento');
+    }
+
+    const nomeSeguro = basename(arquivo);
+    const pastaUploads = join(process.cwd(), 'uploads', 'contratos');
+    if (!existsSync(pastaUploads)) {
+      mkdirSync(pastaUploads, { recursive: true });
+    }
+
+    const caminhoArquivo = join(pastaUploads, nomeSeguro);
+    if (!existsSync(caminhoArquivo)) {
+      throw new NotFoundException('Arquivo não encontrado no servidor');
+    }
+
+    return res.sendFile(caminhoArquivo);
+  }
+
+  // proprietário aprova ou recusa a análise cadastral com justificativa
+  @Post(':id/analise-cadastral')
+  @UseGuards(AuthGuard)
+  async registrarAnaliseCadastral(
+    @Param('id') id: string,
+    @Body() body: { decisao?: string; justificativa?: string },
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException('Apenas o proprietário pode avaliar o cadastro');
+    }
+
+    if (contrato.status !== 'AGUARDANDO_REVISAO') {
+      throw new BadRequestException(
+        'Este contrato não está aguardando análise cadastral',
+      );
+    }
+
+    const decisao = String(body?.decisao || '').toUpperCase();
+    const justificativa = String(body?.justificativa || '').trim();
+
+    if (decisao !== 'APROVADA' && decisao !== 'RECUSADA') {
+      throw new BadRequestException('Decisão inválida. Informe APROVADA ou RECUSADA');
+    }
+
+    if (!justificativa) {
+      throw new BadRequestException(
+        'A justificativa da decisão é obrigatória',
+      );
+    }
+
+    contrato.status_analise_cadastral = decisao;
+    contrato.justificativa_analise = justificativa;
+    contrato.data_analise_cadastral = new Date();
+    contrato.status =
+      decisao === 'APROVADA' ? 'AGUARDANDO_ASSINATURAS' : 'CADASTRO_RECUSADO';
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message:
+        decisao === 'APROVADA'
+          ? 'Cadastro aprovado e contrato liberado para assinatura!'
+          : 'Cadastro recusado e justificativa registrada.',
+      status: contrato.status,
+      status_analise_cadastral: contrato.status_analise_cadastral,
+      justificativa_analise: contrato.justificativa_analise,
+      data_analise_cadastral: contrato.data_analise_cadastral,
+    };
+  }
+
+  // proprietário envia o contrato único já assinado por ambas as partes
+  @Post(':id/upload-assinatura')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      dest: './uploads/contratos',
+    }),
+  )
+  async uploadContratoAssinado(
+    @Param('id') id: string,
+    @UploadedFile() arquivo: any,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException(
+        'Apenas o proprietário pode enviar o contrato final assinado',
+      );
+    }
+
+    if (
+      contrato.status !== 'AGUARDANDO_ASSINATURAS' &&
+      contrato.status !== 'CONCLUIDO'
+    ) {
+      throw new BadRequestException(
+        'Aprove a análise cadastral antes de enviar o contrato assinado',
+      );
+    }
+
+    if (!arquivo) {
+      throw new BadRequestException(
+        'Selecione o arquivo PDF ou imagem do contrato assinado',
+      );
+    }
+
+    // remove o arquivo anterior se o proprietário estiver substituindo o PDF
+    if (contrato.arquivo_contrato_assinado) {
+      try {
+        unlinkSync(
+          join(
+            process.cwd(),
+            'uploads',
+            'contratos',
+            basename(contrato.arquivo_contrato_assinado),
+          ),
+        );
+      } catch {}
+    }
+
+    contrato.arquivo_contrato_assinado = arquivo.filename;
+    contrato.data_assinatura_final = new Date();
+    contrato.status = 'CONCLUIDO';
+
+    const imovel = await this.imovelRepository.findOne({
+      where: { id: contrato.imovel_id },
+    });
+
+    if (imovel) {
+      imovel.status = 'Alugado';
+      await this.imovelRepository.save(imovel);
+    }
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message:
+        'Contrato assinado enviado com sucesso! Contrato concluído e imóvel marcado como Alugado.',
+      status: contrato.status,
+      arquivo_contrato_assinado: contrato.arquivo_contrato_assinado,
+      data_assinatura_final: contrato.data_assinatura_final,
+    };
+  }
+
+  //proprietário ou inquilino baixa/visualiza o contrato final assinado
+  @Get(':id/contrato-assinado')
+  @UseGuards(AuthGuard)
+  async baixarContratoAssinado(
+    @Param('id') id: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    const ehLocador = String(contrato.locador_id) === usuarioId;
+    const ehLocatario = String(contrato.locatario_id) === usuarioId;
+
+    if (!ehLocador && !ehLocatario) {
+      throw new ForbiddenException('Sem permissão para acessar este contrato');
+    }
+
+    if (!contrato.arquivo_contrato_assinado) {
+      throw new NotFoundException(
+        'O contrato assinado ainda não foi enviado pelo proprietário',
+      );
+    }
+
+    const nomeSeguro = basename(contrato.arquivo_contrato_assinado);
+    const caminhoArquivo = join(
+      process.cwd(),
+      'uploads',
+      'contratos',
+      nomeSeguro,
+    );
+
+    if (!existsSync(caminhoArquivo)) {
+      throw new NotFoundException('Arquivo não encontrado no servidor');
+    }
+
+    return res.sendFile(caminhoArquivo);
+  }
+
+  // edita os dados do contrato enquanto o inquilino ainda não aceitou o convite
+  @Patch(':id')
+  @UseGuards(AuthGuard)
+  async atualizarContratoPreAceite(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException('Apenas o proprietário pode editar o contrato');
+    }
+
+    if (
+      contrato.status !== 'RASCUNHO' &&
+      contrato.status !== 'AGUARDANDO_INQUILINO'
+    ) {
+      throw new BadRequestException(
+        'Não é possível editar o contrato após o inquilino aceitar o convite',
+      );
+    }
+
+    if (body.cpf_locatario !== undefined) {
+      const cpfLimpo = String(body.cpf_locatario).replace(/\D/g, '');
+      if (cpfLimpo.length !== 11) {
+        throw new BadRequestException('Informe um CPF válido com 11 dígitos');
+      }
+      contrato.cpf_locatario = cpfLimpo;
+    }
+
+    if (body.valor_aluguel !== undefined) {
+      contrato.valor_aluguel = String(Number(body.valor_aluguel));
+    
+    }
+    if (body.data_inicio !== undefined) {
+      contrato.data_inicio = body.data_inicio;
+    }
+    if (body.data_fim !== undefined) {
+      contrato.data_fim = body.data_fim;
+    }
+    if (body.dia_vencimento !== undefined) {
+      contrato.dia_vencimento = Number(body.dia_vencimento);
+    }
+    if (body.indice_reajuste !== undefined) {
+      contrato.indice_reajuste = body.indice_reajuste;
+    }
+    if (body.despesas_inclusas !== undefined) {
+      contrato.despesas_inclusas = Array.isArray(body.despesas_inclusas)
+        ? body.despesas_inclusas
+        : [];
+    }
+    if (body.garantia !== undefined) {
+      contrato.garantia = body.garantia;
+      contrato.tipo_caucao =
+        body.garantia === 'caucao' ? body.tipo_caucao || null : null;
+      contrato.valor_caucao =
+        body.garantia === 'caucao' && body.tipo_caucao === 'negociado'
+          ? String(Number(body.valor_caucao))
+          : null;
+    }
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message: 'Contrato atualizado com sucesso!',
+      contrato,
+    };
+  }
+
+  // proprietário informa seguradora e apólice quando garantia === 'seguro'
+  @Patch(':id/seguro')
+  @UseGuards(AuthGuard)
+  async salvarDadosSeguro(
+    @Param('id') id: string,
+    @Body() body: { seguro_seguradora?: string; seguro_apolice?: string },
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    const contrato = await this.contratoRepository.findOne({
+      where: { id },
+    });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException(
+        'Apenas o proprietário pode informar os dados do seguro-fiança',
+      );
+    }
+
+    if (contrato.garantia !== 'seguro') {
+      throw new BadRequestException(
+        'A garantia deste contrato não é seguro-fiança',
+      );
+    }
+
+    const seguradora = String(body?.seguro_seguradora || '').trim();
+    const apolice = String(body?.seguro_apolice || '').trim();
+
+    if (!seguradora || !apolice) {
+      throw new BadRequestException(
+        'Informe o nome da seguradora e o número da apólice',
+      );
+    }
+
+    contrato.seguro_seguradora = seguradora;
+    contrato.seguro_apolice = apolice;
+
+    await this.contratoRepository.save(contrato);
+
+    return {
+      message: 'Dados do seguro-fiança salvos com sucesso!',
+      seguro_seguradora: contrato.seguro_seguradora,
+      seguro_apolice: contrato.seguro_apolice,
+    };
+  }
 }

@@ -1,14 +1,26 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Checkbox from "../components/Checkbox";
 import Radio from "../components/Radio";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Button from "../components/Button";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function CadastroContrato() {
+function ConteudoCadastroContrato() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const imovelId = searchParams.get("imovelId");
+  const modoEdicao = searchParams.get("editar") === "true";
+  const modoNovo = searchParams.get("novo") === "true";
+
+  const apiUrl = (
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
+  ).replace(/\/$/, "");
+
   const titulo = "font-display font-bold";
   const tituloCentrado = "font-display font-bold text-2xl text-center";
+
   const [etapa, setEtapa] = useState(1);
   const [valorAluguel, setValorAluguel] = useState("");
   const [despesas, setDespesas] = useState([]);
@@ -19,46 +31,105 @@ export default function CadastroContrato() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [diaVencimento, setDiaVencimento] = useState("");
-  const searchParams = useSearchParams();
-  const imovelId = searchParams.get("imovelId");
+  const [indiceReajuste, setIndiceReajuste] = useState("");
+
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
-const [contratoId, setContratoId] = useState(
-  searchParams.get("contratoId")
-);
+  const [verificandoExistente, setVerificandoExistente] = useState(true);
+
+  const [contratoId, setContratoId] = useState(
+    searchParams.get("contratoId")
+  );
   const [conviteToken, setConviteToken] = useState("");
   const [statusContrato, setStatusContrato] = useState("");
   const [gerandoConvite, setGerandoConvite] = useState(false);
-  const [indiceReajuste, setIndiceReajuste] = useState("");
   const [imovel, setImovel] = useState(null);
 
+//busca os dados do imóvel e verifica se já existe contrato cadastrado para ele
   useEffect(() => {
-    if (!imovelId) return;
+    if (!imovelId && !contratoId) {
+      setVerificandoExistente(false);
+      return;
+    }
 
-    async function buscarImovel() {
+    async function inicializarTela() {
+      setVerificandoExistente(true);
+      const token = sessionStorage.getItem("token");
+
       try {
-        const resposta = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/imoveis/${imovelId}`,
-        );
+        if (imovelId) {
+          const respImovel = await fetch(`${apiUrl}/imoveis/${imovelId}`);
+          if (respImovel.ok) {
+            const dadosImovel = await respImovel.json();
+            setImovel(dadosImovel);
+          }
 
-        if (!resposta.ok) {
-          throw new Error("Erro ao buscar imóvel");
+          if (token) {
+            const respContrato = await fetch(
+              `${apiUrl}/contratos/imovel/${imovelId}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+
+            if (respContrato.ok) {
+              const contratoExistente = await respContrato.json();
+
+              // Se o contrato anterior foi recusado e clicou em "Iniciar Novo Contrato", libera o formulário limpo
+              if (
+                modoNovo &&
+                contratoExistente.status === "CADASTRO_RECUSADO"
+              ) {
+                return;
+              }
+
+              // Se está em modo edição antes do aceite do inquilino, preenche os campos para alterar
+              if (
+                modoEdicao &&
+                ["RASCUNHO", "AGUARDANDO_INQUILINO"].includes(
+                  contratoExistente.status
+                )
+              ) {
+                setContratoId(String(contratoExistente.id));
+                setStatusContrato(contratoExistente.status);
+                setConviteToken(contratoExistente.convite_token || "");
+                setValorAluguel(String(contratoExistente.valor_aluguel || ""));
+                setIndiceReajuste(contratoExistente.indice_reajuste || "");
+                setDespesas(contratoExistente.despesas_inclusas || []);
+                setCpfInquilino(contratoExistente.cpf_locatario || "");
+                setGarantia(contratoExistente.garantia || "");
+                setTipoCaucao(contratoExistente.tipo_caucao || "");
+                setValorCaucao(String(contratoExistente.valor_caucao || ""));
+                setDataInicio(
+                  contratoExistente.data_inicio
+                    ? String(contratoExistente.data_inicio).slice(0, 10)
+                    : ""
+                );
+                setDataFim(
+                  contratoExistente.data_fim
+                    ? String(contratoExistente.data_fim).slice(0, 10)
+                    : ""
+                );
+                setDiaVencimento(String(contratoExistente.dia_vencimento || ""));
+                return;
+              }
+
+              setContratoId(String(contratoExistente.id));
+              setStatusContrato(contratoExistente.status || "");
+              setConviteToken(contratoExistente.convite_token || "");
+            }
+          }
         }
-
-        const dados = await resposta.json();
-        setImovel(dados);
-      } catch (erro) {
-        console.error("Erro ao carregar imóvel:", erro);
+      } catch (err) {
+        console.error("Erro ao carregar dados iniciais:", err);
+      } finally {
+        setVerificandoExistente(false);
       }
     }
 
-    buscarImovel();
-  }, [imovelId]);
-
-  const linkConvite = conviteToken
-    ? `${window.location.origin}/ConviteContrato?token=${conviteToken}`
-    : "";
+    inicializarTela();
+  }, [imovelId, apiUrl, modoEdicao, modoNovo]);
 
   function alterarDespesa(despesa) {
     if (despesas.includes(despesa)) {
@@ -67,42 +138,37 @@ const [contratoId, setContratoId] = useState(
       setDespesas([...despesas, despesa]);
     }
   }
+
   function validarContrato() {
     if (!imovelId) {
       alert("Nenhum imóvel foi selecionado.");
       return false;
     }
-    // verifica se o indice de reajuste foi escolhido
     if (!["IPCA", "IGP-M", "INCC"].includes(indiceReajuste)) {
       alert("Selecione um índice de reajuste.");
       setEtapa(1);
       return false;
     }
-
     if (!valorAluguel || Number(valorAluguel) <= 0) {
       alert("Informe um valor de aluguel válido.");
       setEtapa(1);
       return false;
     }
-
     if (cpfInquilino.length !== 11) {
       alert("Informe um CPF com 11 dígitos.");
       setEtapa(2);
       return false;
     }
-
     if (!garantia) {
       alert("Selecione uma garantia locatícia.");
       setEtapa(3);
       return false;
     }
-
     if (garantia === "caucao" && !tipoCaucao) {
       alert("Selecione o tipo de caução.");
       setEtapa(3);
       return false;
     }
-
     if (garantia === "caucao" && tipoCaucao === "negociado") {
       if (
         !valorCaucao ||
@@ -110,19 +176,17 @@ const [contratoId, setContratoId] = useState(
         Number(valorCaucao) > Number(valorAluguel) * 3
       ) {
         alert(
-          "A caução deve ser maior que zero e não ultrapassar três aluguéis.",
+          "A caução deve ser maior que zero e não ultrapassar três aluguéis."
         );
         setEtapa(3);
         return false;
       }
     }
-
     if (!dataInicio || !dataFim || dataFim <= dataInicio) {
       alert("Informe datas válidas para a locação.");
       setEtapa(4);
       return false;
     }
-
     if (
       !diaVencimento ||
       Number(diaVencimento) < 1 ||
@@ -132,7 +196,6 @@ const [contratoId, setContratoId] = useState(
       setEtapa(4);
       return false;
     }
-
     return true;
   }
 
@@ -151,39 +214,35 @@ const [contratoId, setContratoId] = useState(
         setMensagem("Você precisa fazer login novamente.");
         return;
       }
-      console.log("Dados enviados:", {
-        imovel_id: imovelId,
-        despesas_inclusas: despesas,
-        garantia: garantia,
-        tipo_caucao: tipoCaucao,
-        valor_caucao: valorCaucao,
-      });
-      const resposta = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/contratos`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            imovel_id: imovelId,
-            cpf_locatario: cpfInquilino,
-            valor_aluguel: Number(valorAluguel),
-            data_inicio: dataInicio,
-            data_fim: dataFim,
-            dia_vencimento: Number(diaVencimento),
-            indice_reajuste: indiceReajuste,
-            despesas_inclusas: despesas,
-            garantia: garantia,
-            tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
-            valor_caucao:
-              garantia === "caucao" && tipoCaucao === "negociado"
-                ? Number(valorCaucao)
-                : null,
-          }),
-        },
-      );
+
+      const urlRequisicao =
+   modoEdicao && contratoId
+     ? `${apiUrl}/contratos/${contratoId}`
+     : `${apiUrl}/contratos`;
+
+ const resposta = await fetch(urlRequisicao, {
+   method: modoEdicao && contratoId ? "PATCH" : "POST",
+   headers: {
+     "Content-Type": "application/json",
+     Authorization: `Bearer ${token}`,
+   },
+   body: JSON.stringify({
+     imovel_id: imovelId,
+     cpf_locatario: cpfInquilino,
+     valor_aluguel: Number(valorAluguel),
+     data_inicio: dataInicio,
+     data_fim: dataFim,
+     dia_vencimento: Number(diaVencimento),
+     indice_reajuste: indiceReajuste,
+     despesas_inclusas: despesas,
+     garantia: garantia,
+     tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
+     valor_caucao:
+       garantia === "caucao" && tipoCaucao === "negociado"
+         ? Number(valorCaucao)
+         : null,
+   }),
+ });
 
       const dados = await resposta.json();
       if (!resposta.ok) {
@@ -191,15 +250,27 @@ const [contratoId, setContratoId] = useState(
         setMensagem(
           Array.isArray(dados.message)
             ? dados.message.join(", ")
-            : dados.message || "Erro ao cadastrar contrato.",
+            : dados.message || "Erro ao cadastrar contrato."
         );
         return;
       }
+      if (modoEdicao && contratoId) {
+   router.push(`/DetalhesContrato?imovelId=${imovelId}`);
+   return;
+ }
 
-      setMensagem(`Contrato cadastrado com sucesso! ID: ${dados.contrato.id}`);
-      await gerarConvite(dados.contrato.id);
-      setContratoId(dados.contrato.id);
-    } catch (erro) {
+      const novoId = String(dados.contrato.id);
+      setContratoId(novoId);
+      setStatusContrato(dados.contrato.status || "RASCUNHO");
+      setMensagem(`Contrato cadastrado com sucesso! ID: ${novoId}`);
+
+      // Mantém imovelId e contratoId na URL caso dê F5
+      router.replace(
+        `/CadastroContrato?imovelId=${imovelId}&contratoId=${novoId}`
+      );
+
+      await gerarConvite(novoId);
+    } catch {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
     } finally {
@@ -208,7 +279,8 @@ const [contratoId, setContratoId] = useState(
   }
 
   async function gerarConvite(id) {
-    if (!id) return;
+    const idAlvo = typeof id === "string" || typeof id === "number" ? id : contratoId;
+    if (!idAlvo) return;
 
     setGerandoConvite(true);
     setMensagem("");
@@ -223,15 +295,12 @@ const [contratoId, setContratoId] = useState(
         return;
       }
 
-      const resposta = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/contratos/${id}/convite`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const resposta = await fetch(`${apiUrl}/contratos/${idAlvo}/convite`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       const dados = await resposta.json();
 
@@ -242,8 +311,9 @@ const [contratoId, setContratoId] = useState(
       }
 
       setConviteToken(dados.convite_token);
+      setStatusContrato(dados.status || "AGUARDANDO_INQUILINO");
       setMensagem("Convite gerado com sucesso!");
-    } catch (erro) {
+    } catch {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
     } finally {
@@ -263,41 +333,57 @@ const [contratoId, setContratoId] = useState(
     }
   }
 
-useEffect(() => {
-  if (!contratoId)  return;
+  // Polling de status a cada 5 segundos
+  useEffect(() => {
+    if (!contratoId) return;
 
     async function verificarStatus() {
       try {
-       const token = sessionStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         if (!token) return;
 
-        const resposta = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/contratos/${contratoId}/dados`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+        const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/dados`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        );
+        });
 
         if (!resposta.ok) return;
 
         const dados = await resposta.json();
         setStatusContrato(dados.status);
+        if (dados.convite_token) {
+          setConviteToken(dados.convite_token);
+        }
       } catch (erro) {
         console.error("Erro ao verificar status:", erro);
       }
     }
 
     verificarStatus();
-
-    // verifica novamente a cada 5 segundos
     const intervalo = setInterval(verificarStatus, 5000);
-
     return () => clearInterval(intervalo);
-  }, [contratoId]);
+  }, [contratoId, apiUrl]);
 
-  if (conviteToken || contratoId) {
+  if (verificandoExistente) {
+    return (
+      <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6 text-paper">
+        <p>Verificando contrato do imóvel...</p>
+      </main>
+    );
+  }
+
+  // TELA DE ACOMPANHAMENTO (aparece após cadastrar ou ao recarregar um imóvel que já possui contrato)
+  if ((conviteToken || contratoId) && !modoEdicao) {
+    const inquilinoConcluiu =
+      statusContrato === "AGUARDANDO_REVISAO" ||
+      statusContrato === "AGUARDANDO_ASSINATURAS" ||
+      statusContrato === "CONCLUIDO";
+
+    const contratoAprovado =
+      statusContrato === "AGUARDANDO_ASSINATURAS" ||
+      statusContrato === "CONCLUIDO";
+
     return (
       <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
         <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
@@ -305,9 +391,12 @@ useEffect(() => {
             Contrato cadastrado!
           </h1>
 
-          <p className="text-center mt-3">
-            O cadastro do proprietário foi concluído. Agora estamos aguardando o
-            inquilino.
+          <p className="text-center mt-3 text-sm">
+            {statusContrato === "AGUARDANDO_REVISAO"
+              ? "O inquilino concluiu o preenchimento. Revise o contrato para aprovar."
+              : contratoAprovado
+              ? "Este contrato já foi revisado e aprovado."
+              : "O cadastro do proprietário foi concluído. Agora estamos aguardando o inquilino."}
           </p>
 
           <h2 className="font-bold mt-8 mb-3">Progresso do contrato</h2>
@@ -317,31 +406,31 @@ useEffect(() => {
 
             <div
               className={`h-2 flex-1 rounded-full ${
-                statusContrato === "AGUARDANDO_REVISAO" ||
-                statusContrato === "AGUARDANDO_ASSINATURAS" ||
-                statusContrato === "CONCLUIDO"
-                  ? "bg-teal"
-                  : "bg-gray-300"
+                inquilinoConcluiu ? "bg-teal" : "bg-gray-300"
               }`}
             ></div>
 
-            <div className="h-2 flex-1 bg-gray-300 rounded-full"></div>
+            <div
+              className={`h-2 flex-1 rounded-full ${
+                contratoAprovado ? "bg-teal" : "bg-gray-300"
+              }`}
+            ></div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-3 text-xs text-center">
             <p>✓ Proprietário</p>
 
             <p className="font-bold">
-              {statusContrato === "AGUARDANDO_REVISAO" ||
-              statusContrato === "AGUARDANDO_ASSINATURAS" ||
-              statusContrato === "CONCLUIDO"
+              {inquilinoConcluiu
                 ? "✓ Inquilino concluiu"
                 : statusContrato === "PENDENTE_DADOS"
-                  ? "Inquilino preenchendo"
-                  : "Aguardando inquilino"}
+                ? "Inquilino preenchendo"
+                : "Aguardando inquilino"}
             </p>
 
-            <p>Finalização</p>
+            <p className={contratoAprovado ? "font-bold text-teal" : ""}>
+              {contratoAprovado ? "✓ Aprovado" : "Finalização"}
+            </p>
           </div>
 
           {statusContrato === "AGUARDANDO_REVISAO" && (
@@ -351,31 +440,47 @@ useEffect(() => {
                 contrato.
               </p>
 
-              <a
-                href={`/RevisarContrato?id=${contratoId}`}
+              <Link
+                href={`/AnaliseCadastral?id=${contratoId}`}
                 className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
               >
                 Revisar contrato
-              </a>
+              </Link>
             </div>
           )}
 
-          
-{conviteToken && statusContrato !== "AGUARDANDO_REVISAO" && (
-  <div>
-    <h2 className="font-bold mt-8">Convite para o inquilino</h2>
+          {contratoAprovado && (
+            <div className="mt-6">
+              <Link
+                href={`/AnaliseCadastral?id=${contratoId}`}
+                className="block rounded-lg bg-teal p-3 text-center font-bold text-white"
+              >
+                Ver contrato aprovado / Baixar PDF
+              </Link>
+            </div>
+          )}
 
-    <p className="text-sm mt-2 mb-4">
-      Copie o link e envie para o inquilino continuar o cadastro.
-    </p>
+          {statusContrato === "RASCUNHO" && !conviteToken && (
+            <div className="mt-6">
+              <Button
+                texto={gerandoConvite ? "Gerando convite..." : "Gerar convite"}
+                onClick={() => gerarConvite(contratoId)}
+                disabled={gerandoConvite}
+              />
+            </div>
+          )}
 
-    <Button
-      texto="Copiar link do convite"
-      onClick={copiarConvite}
-    />
-  </div>
-)}
+          {conviteToken && statusContrato === "AGUARDANDO_INQUILINO" && (
+            <div>
+              <h2 className="font-bold mt-8">Convite para o inquilino</h2>
 
+              <p className="text-sm mt-2 mb-4">
+                Copie o link e envie para o inquilino continuar o cadastro.
+              </p>
+
+              <Button texto="Copiar link do convite" onClick={copiarConvite} />
+            </div>
+          )}
 
           {mensagem && (
             <p
@@ -387,14 +492,29 @@ useEffect(() => {
               {mensagem}
             </p>
           )}
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between text-xs">
+            <Link href="/dashboard" className="text-slate-600 hover:underline">
+              ← Voltar para Dashboard
+            </Link>
+            {imovelId && (
+              <Link
+                href={`/DetalhesContrato?imovelId=${imovelId}`}
+                className="text-teal font-semibold hover:underline"
+              >
+                Ver detalhes completos →
+              </Link>
+            )}
+          </div>
         </div>
       </main>
     );
   }
+
   return (
-    <main className="min-h-screen  bg-linear-to-b  from-ink from-60% to-ink-soft text-slate-darker flex flex-col">
-      <section className="flex justify-center content-center ">
-        <div className="w-100  bg-paper p-7 br-2 rounded-xl  ">
+    <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-slate-darker flex flex-col">
+      <section className="flex justify-center content-center">
+        <div className="w-100 bg-paper p-7 br-2 rounded-xl">
           {/* informações do imóvel selecionado */}
           <div className="mb-6 rounded-lg border border-slate-300 bg-slate-50 p-4">
             <h2 className="font-display font-bold text-lg mb-3">
@@ -406,25 +526,20 @@ useEffect(() => {
                 <p>
                   <strong>Tipo:</strong> {imovel.tipo}
                 </p>
-
                 <p>
                   <strong>Endereço:</strong> {imovel.logradouro},{" "}
                   {imovel.numero}
                   {imovel.complemento ? ` - ${imovel.complemento}` : ""}
                 </p>
-
                 <p>
                   <strong>Bairro:</strong> {imovel.bairro}
                 </p>
-
                 <p>
                   <strong>Cidade:</strong> {imovel.cidade}/{imovel.estado}
                 </p>
-
                 <p>
                   <strong>CEP:</strong> {imovel.cep}
                 </p>
-
                 <p>
                   <strong>Situação:</strong> {imovel.status}
                 </p>
@@ -438,7 +553,6 @@ useEffect(() => {
 
           <div className="mb-6">
             <p>Etapa {etapa} de 4</p>
-
             <div className="w-full h-2 bg-slate-200 rounded-full">
               <div
                 className="h-full bg-teal rounded-full transition-all duration-300"
@@ -446,6 +560,7 @@ useEffect(() => {
               />
             </div>
           </div>
+
           <form>
             {etapa === 1 && (
               <div>
@@ -461,7 +576,6 @@ useEffect(() => {
                 />
                 <div className="mt-4 mb-4">
                   <h1 className={titulo}>Índice de reajuste anual:</h1>
-
                   <select
                     value={indiceReajuste}
                     onChange={(e) => setIndiceReajuste(e.target.value)}
@@ -472,7 +586,6 @@ useEffect(() => {
                     <option value="IGP-M">IGP-M</option>
                     <option value="INCC">INCC</option>
                   </select>
-
                   <p className="text-sm mt-2">
                     O índice escolhido será utilizado para o reajuste anual do
                     aluguel, quando aplicável.
@@ -485,35 +598,30 @@ useEffect(() => {
                   checked={despesas.includes("agua")}
                   onChange={() => alterarDespesa("agua")}
                 />
-
                 <Checkbox
                   texto="Luz"
                   value="luz"
                   checked={despesas.includes("luz")}
                   onChange={() => alterarDespesa("luz")}
                 />
-
                 <Checkbox
                   texto="Internet"
                   value="internet"
                   checked={despesas.includes("internet")}
                   onChange={() => alterarDespesa("internet")}
                 />
-
                 <Checkbox
                   texto="Gás"
                   value="gas"
                   checked={despesas.includes("gas")}
                   onChange={() => alterarDespesa("gas")}
                 />
-
                 <Checkbox
                   texto="Condomínio"
                   value="condominio"
                   checked={despesas.includes("condominio")}
                   onChange={() => alterarDespesa("condominio")}
                 />
-
                 <Checkbox
                   texto="IPTU"
                   value="iptu"
@@ -544,7 +652,6 @@ useEffect(() => {
               <div>
                 <h1 className={tituloCentrado}>Garantia Locatária</h1>
                 <h1 className={titulo}>Escolha Garantia:</h1>
-
                 <Radio
                   texto="Fiador"
                   name="garantia"
@@ -552,7 +659,6 @@ useEffect(() => {
                   checked={garantia === "fiador"}
                   onChange={() => setGarantia("fiador")}
                 />
-
                 <Radio
                   texto="Seguro-fiança"
                   name="garantia"
@@ -560,7 +666,6 @@ useEffect(() => {
                   checked={garantia === "seguro"}
                   onChange={() => setGarantia("seguro")}
                 />
-
                 <Radio
                   texto="Caução"
                   name="garantia"
@@ -568,7 +673,6 @@ useEffect(() => {
                   checked={garantia === "caucao"}
                   onChange={() => setGarantia("caucao")}
                 />
-
                 <Radio
                   texto="Sem garantia"
                   name="garantia"
@@ -579,7 +683,6 @@ useEffect(() => {
                 {garantia === "caucao" && (
                   <div>
                     <h1 className={titulo}>Escolher Caução:</h1>
-
                     <Radio
                       texto="Caução 3 Aluguéis"
                       name="tipoCaucao"
@@ -587,7 +690,6 @@ useEffect(() => {
                       checked={tipoCaucao === "3"}
                       onChange={() => setTipoCaucao("3")}
                     />
-
                     <Radio
                       texto="Caução 2 Aluguéis"
                       name="tipoCaucao"
@@ -595,7 +697,6 @@ useEffect(() => {
                       checked={tipoCaucao === "2"}
                       onChange={() => setTipoCaucao("2")}
                     />
-
                     <Radio
                       texto="Valor Negociado"
                       name="tipoCaucao"
@@ -603,7 +704,6 @@ useEffect(() => {
                       checked={tipoCaucao === "negociado"}
                       onChange={() => setTipoCaucao("negociado")}
                     />
-
                     {tipoCaucao === "negociado" && (
                       <input
                         type="number"
@@ -629,7 +729,6 @@ useEffect(() => {
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
                 />
-
                 <h1 className={titulo}>Data de término da locação:</h1>
                 <input
                   type="date"
@@ -638,7 +737,6 @@ useEffect(() => {
                   onChange={(e) => setDataFim(e.target.value)}
                 />
                 <h1 className={titulo}>Dia do vencimento do aluguel:</h1>
-
                 <input
                   type="number"
                   min="1"
@@ -666,12 +764,19 @@ useEffect(() => {
                 />
               ) : (
                 <Button
-                  texto={carregando ? "Cadastrando..." : "Cadastrar contrato"}
+                  texto={
+                  carregando
+                    ? "Salvando..."
+                    : modoEdicao
+                    ? "Salvar alterações"
+                    : "Cadastrar contrato"
+                }
                   onClick={cadastrarContrato}
                   disabled={carregando}
                 />
               )}
             </div>
+
             {mensagem && (
               <p
                 role={erro ? "alert" : "status"}
@@ -682,33 +787,17 @@ useEffect(() => {
                 {mensagem}
               </p>
             )}
-            {contratoId && !conviteToken && (
-              <div className="mt-4">
-                <Button
-                  texto={
-                    gerandoConvite ? "Gerando convite..." : "Gerar convite"
-                  }
-                  onClick={gerarConvite}
-                  disabled={gerandoConvite}
-                />
-              </div>
-            )}
-            {conviteToken && (
-              <div className="mt-4">
-                <p className="font-bold">Convite gerado!</p>
-                <p className="text-sm">
-                  Envie o link para o inquilino indicado no contrato.
-                </p>
-
-                <Button
-                  texto="Copiar link do convite"
-                  onClick={copiarConvite}
-                />
-              </div>
-            )}
           </form>
         </div>
       </section>
     </main>
+  );
+}
+
+export default function CadastroContrato() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink" />}>
+      <ConteudoCadastroContrato />
+    </Suspense>
   );
 }

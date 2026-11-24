@@ -18,6 +18,7 @@ import {
   LogOut,
   MapPin,
   Lock,
+  FileText,
 } from "lucide-react";
 import "./style.css";
 
@@ -64,11 +65,13 @@ export default function DashboardProprietario() {
 
       if (resposta.ok) {
         setImoveis((listaAtual) =>
-          listaAtual.filter((item) => String(item.id) !== String(id))
+          listaAtual.filter((item) => String(item.id) !== String(id)),
         );
       } else {
         const erroDados = await resposta.json().catch(() => ({}));
-        setAvisoRegra(erroDados.mensagem || "Não foi possível excluir o imóvel.");
+        setAvisoRegra(
+          erroDados.mensagem || "Não foi possível excluir o imóvel.",
+        );
       }
     } catch (erro) {
       console.error("Erro ao excluir imóvel:", erro);
@@ -80,7 +83,7 @@ export default function DashboardProprietario() {
   const irParaEdicao = (imovel) => {
     if (imovel.status?.toUpperCase() === "ALUGADO") {
       setAvisoRegra(
-        `Bloqueado: O imóvel #${imovel.id} (${imovel.logradouro}, ${imovel.numero}) está com status ALUGADO e suas informações não podem ser alteradas.`
+        `Bloqueado: O imóvel #${imovel.id} (${imovel.logradouro}, ${imovel.numero}) está com status ALUGADO e suas informações não podem ser alteradas.`,
       );
       return;
     }
@@ -90,20 +93,23 @@ export default function DashboardProprietario() {
   // Cálculos dinâmicos dos Cards
   const totalImoveis = imoveis.length;
   const totalAlugados = imoveis.filter(
-    (item) => item.status?.toUpperCase() === "ALUGADO"
+    (item) => item.status?.toUpperCase() === "ALUGADO",
   ).length;
   const totalDisponiveis = imoveis.filter(
     (item) =>
       item.status?.toUpperCase() === "DISPONIVEL" ||
       item.status?.toUpperCase() === "DISPONÍVEL" ||
-      item.status?.toUpperCase() === "VAGO"
+      item.status?.toUpperCase() === "VAGO",
   ).length;
 
   const taxaOcupacao =
     totalImoveis > 0 ? Math.round((totalAlugados / totalImoveis) * 100) : 0;
 
-    const removerAcentos = (texto) =>
-    (texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const removerAcentos = (texto) =>
+    (texto || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase();
 
   // Filtragem para a tabela (Busca + Status + Tipo)
   const imoveisFiltrados = imoveis.filter((imovel) => {
@@ -224,7 +230,8 @@ export default function DashboardProprietario() {
               {abaAtiva === "pagamentos" && "Controle de Pagamentos"}
             </h1>
             <p className="page-subtitle">
-              Acompanhe seus imóveis cadastrados e gerencie seu patrimônio em tempo real.
+              Acompanhe seus imóveis cadastrados e gerencie seu patrimônio em
+              tempo real.
             </p>
           </div>
 
@@ -271,7 +278,8 @@ export default function DashboardProprietario() {
                 </div>
                 <div className="stat-value">{totalImoveis}</div>
                 <p className="stat-desc">
-                  Unidades registradas no <span className="stat-highlight">Chaveo</span>
+                  Unidades registradas no{" "}
+                  <span className="stat-highlight">Chaveo</span>
                 </p>
               </div>
 
@@ -283,9 +291,7 @@ export default function DashboardProprietario() {
                   </div>
                 </div>
                 <div className="stat-value">{totalAlugados}</div>
-                <p className="stat-desc">
-                  Gerando receita ativa no momento
-                </p>
+                <p className="stat-desc">Gerando receita ativa no momento</p>
               </div>
 
               <div className="stat-card">
@@ -296,9 +302,7 @@ export default function DashboardProprietario() {
                   </div>
                 </div>
                 <div className="stat-value">{totalDisponiveis}</div>
-                <p className="stat-desc">
-                  Prontos para locação imediata
-                </p>
+                <p className="stat-desc">Prontos para locação imediata</p>
               </div>
 
               <div className="stat-card">
@@ -309,9 +313,7 @@ export default function DashboardProprietario() {
                   </div>
                 </div>
                 <div className="stat-value">{taxaOcupacao}%</div>
-                <p className="stat-desc">
-                  Aproveitamento atual da carteira
-                </p>
+                <p className="stat-desc">Aproveitamento atual da carteira</p>
               </div>
             </section>
           )}
@@ -388,7 +390,8 @@ export default function DashboardProprietario() {
                   <MapPin className="empty-icon" />
                   <p className="empty-title">Nenhum imóvel encontrado</p>
                   <p className="empty-text">
-                    Assim que você cadastrar um imóvel ou ajustar os filtros, ele aparecerá listado aqui.
+                    Assim que você cadastrar um imóvel ou ajustar os filtros,
+                    ele aparecerá listado aqui.
                   </p>
                 </div>
               ) : (
@@ -442,13 +445,23 @@ export default function DashboardProprietario() {
                                 title="Ver Detalhes"
                                 onClick={() =>
                                   setAvisoRegra(
-                                    `Imóvel #${imovel.id}: ${imovel.logradouro}, ${imovel.numero} (${imovel.bairro} - ${imovel.cidade}/${imovel.estado}) | Status: ${imovel.status}`
+                                    `Imóvel #${imovel.id}: ${imovel.logradouro}, ${imovel.numero} (${imovel.bairro} - ${imovel.cidade}/${imovel.estado}) | Status: ${imovel.status}`,
                                   )
                                 }
                               >
                                 <Eye size={17} />
                               </button>
-
+                              <button
+                                className="action-btn-view"
+                                title="Contrato do Imóvel"
+                                onClick={() =>
+                                  router.push(
+                                    `/DetalhesContrato?imovelId=${imovel.id}`,
+                                  )
+                                }
+                              >
+                                <FileText size={17} />
+                              </button>
                               <button
                                 className={
                                   estaAlugado
