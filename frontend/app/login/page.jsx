@@ -3,6 +3,7 @@
 import Logo from "../components/Logo";
 import Checkbox from "../components/Checkbox";
 import Button from "../components/Button";
+import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -84,11 +85,12 @@ function ConteudoLogin() {
 
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-paper flex flex-col">
-      <header>
-        <div className="p-8">
-          <Logo />
-        </div>
-      </header>
+      <Link
+        href="/"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 text-teal hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+      >
+        <span aria-hidden="true">←</span> Voltar
+      </Link>
 
       <section className="flex-1 flex content-center justify-center">
         <div>

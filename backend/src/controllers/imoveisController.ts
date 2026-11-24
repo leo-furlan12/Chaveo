@@ -15,9 +15,13 @@ export class ImoveisController {
 
   // 1. Rota GET para listar todos os imóveis na Dashboard
   @Get()
-  async listar(@Res() res: Response) {
-    try {
+  @UseGuards(AuthGuard)
+  async listar(@Req() req: Request, @Res() res: Response) {
+      try {
+        const proprietarioId = String((req as any).user.sub);
+
       const imoveis = await this.imovelRepository.find({
+        where: { proprietario_id: proprietarioId },
         order: { id: 'DESC' },
       });
       return res.status(HttpStatus.OK).json(imoveis);
@@ -31,6 +35,7 @@ export class ImoveisController {
 
   // 2. Rota GET por ID para carregar os dados na tela de edição
   @Get(':id')
+ // @UseGuards(AuthGuard)
   async buscarPorId(@Param('id') id: string, @Res() res: Response) {
     try {
       const imovel = await this.imovelRepository.findOne({ where: { id } });

@@ -32,12 +32,24 @@ export default function DashboardProprietario() {
   const [filtroTipo, setFiltroTipo] = useState("TODOS");
   const [avisoRegra, setAvisoRegra] = useState("");
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
   const carregarImoveis = async () => {
     setCarregando(true);
     try {
-      const resposta = await fetch(`${apiUrl}/imoveis`);
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+      const resposta = await fetch(`${apiUrl}/imoveis`, {headers: { Authorization: `Bearer ${token}` }});
+       if (resposta.status === 401) {
+        sessionStorage.removeItem("token");
+        router.replace("/login");
+        return;
+      }
+
       if (resposta.ok) {
         const dados = await resposta.json();
         setImoveis(Array.isArray(dados) ? dados : dados.dados || []);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import FormBasic from './FormBasic';
 import FormLocador from './FormLocador';
 import FormLocatario from './FormLocatario';
@@ -73,6 +74,12 @@ export default function IndexCadastro() {
 
   return (
     <div className="bg-[#0A0D14] min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-['Consolas',_monospace] text-slate-100">
+      <Link
+        href="/"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 text-[#00D9B5] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00D9B5]"
+      >
+        <span aria-hidden="true">←</span> Voltar
+      </Link>
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
         <h1 className="text-4xl font-extrabold text-[#00D9B5] tracking-wider drop-shadow-[0_0_12px_rgba(0,217,181,0.3)]">
           &lt;Chaveo /&gt;

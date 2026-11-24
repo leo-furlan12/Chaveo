@@ -77,7 +77,12 @@ export class AsaasCobrancaService {
   // Cria ou reutiliza cliente e assinatura, e registra a primeira cobrança emitida.
   async gerarCobranca(contratoId: string, usuarioId: string) {
     const contrato = await this.buscarContratoDoInquilino(contratoId, usuarioId);
-    const inquilino = contrato.locatario;
+    if (contrato.status !== 'CONCLUIDO') {
+      throw new BadRequestException(
+        'A cobrança só pode ser gerada após a conclusão do contrato.',
+      );
+    }
+        const inquilino = contrato.locatario;
 
     if (
       !inquilino ||
