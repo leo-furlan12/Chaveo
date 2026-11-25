@@ -1,16 +1,19 @@
 "use client";
 
+import TrocarPerfil, { BotaoPerfil } from "../components/TrocarPerfil";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
   Building2,
   CalendarDays,
   Copy,
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  FileCheck2,
   FileText,
   KeyRound,
   LogOut,
@@ -347,14 +350,14 @@ export default function DashboardInquilino() {
   useEffect(() => {
     const atualizarFaturasAoRetomar = () => {
       if (document.visibilityState !== "visible") return;
-      Object.keys(faturasPorContrato).forEach((contratoId) => {
-        void carregarFaturasDoContrato(contratoId);
-      });
+      contratos
+        .filter((contrato) => contrato.status === "CONCLUIDO" && faturasPorContrato[contrato.id])
+        .forEach((contrato) => void carregarFaturasDoContrato(contrato.id));
     };
 
     window.addEventListener("focus", atualizarFaturasAoRetomar);
     return () => window.removeEventListener("focus", atualizarFaturasAoRetomar);
-  }, [faturasPorContrato, carregarFaturasDoContrato]);
+  }, [contratos, faturasPorContrato, carregarFaturasDoContrato]);
 
   // Gera a assinatura somente quando ainda não há fatura e depois atualiza o painel com a resposta do servidor.
   const gerarOuExibirBoleto = async (contratoId) => {
@@ -518,25 +521,34 @@ export default function DashboardInquilino() {
               <Bell size={18} />
               Minhas notificações
             </Link>
+            <BotaoPerfil perfilAtual="INQUILINO" className="tenant-nav-item" />
           </nav>
         </div>
 
-        <div className="tenant-user">
-          <div className="tenant-avatar">
-            {nomeUsuario.slice(0, 2).toUpperCase()}
+        <div className="bg-[#161922]">
+          <div className="space-y-3 px-4 pb-3">
+            <TrocarPerfil perfilAtual="INQUILINO" />
           </div>
-          <div className="tenant-user-data">
-            <strong>{usuario?.nome || "Inquilino"}</strong>
-            <span>Conta ativa</span>
+          <div className="tenant-user">
+            <div className="tenant-avatar">
+              {nomeUsuario.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="tenant-user-data">
+              <strong>{usuario?.nome || "Inquilino"}</strong>
+              <span>Conta ativa</span>
+            </div>
+            <button type="button" onClick={sair} className="tenant-logout" title="Sair">
+              <LogOut size={18} />
+            </button>
           </div>
-          <button type="button" onClick={sair} className="tenant-logout" title="Sair">
-            <LogOut size={18} />
-          </button>
         </div>
       </aside>
 
       <main className="tenant-main" id="inicio">
         <header className="tenant-header">
+          <div className="min-[769px]:hidden">
+            <BotaoPerfil perfilAtual="INQUILINO" />
+          </div>
           <div>
             <p className="tenant-eyebrow">Área do inquilino</p>
             <h1>Olá, {nomeUsuario}.</h1>
@@ -672,6 +684,7 @@ export default function DashboardInquilino() {
                         {contratosDoImovel.map((contrato) => {
                           const chaveContrato = `contrato-${contrato.id}`;
                           const contratoAberto = detalheAberto === chaveContrato;
+                          const podePagar = contrato.status === "CONCLUIDO";
                           const statusContrato = normalizarStatus(contrato.status);
                           const faturasContrato = faturasPorContrato[contrato.id];
                           const faturaAtual = faturasContrato?.find(
@@ -698,7 +711,7 @@ export default function DashboardInquilino() {
                                   onClick={() => {
                                     const vaiAbrir = !contratoAberto;
                                     alternarDetalhe(chaveContrato);
-                                    if (vaiAbrir) carregarFaturasDoContrato(contrato.id);
+                                    if (vaiAbrir && podePagar) carregarFaturasDoContrato(contrato.id);
                                   }}
                                   aria-expanded={contratoAberto}
                                 >
@@ -706,6 +719,19 @@ export default function DashboardInquilino() {
                                   {contratoAberto ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
                                 </button>
                               </div>
+
+                              {contrato.status === "PENDENTE_DADOS" && (
+                                <div className="mt-4 flex justify-center">
+                                  <Link
+                                    href={`/CompletarContrato?id=${encodeURIComponent(contrato.id)}`}
+                                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-300 px-4 py-2.5 text-center text-sm font-semibold text-slate-950 shadow-sm transition-colors hover:bg-teal-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300"
+                                  >
+                                    <FileCheck2 size={17} className="shrink-0" aria-hidden="true" />
+                                    Preencher ficha cadastral
+                                    <ArrowRight size={16} className="shrink-0" aria-hidden="true" />
+                                  </Link>
+                                </div>
+                              )}
 
                               {contratoAberto && (
                                 <>
@@ -716,207 +742,209 @@ export default function DashboardInquilino() {
                                     <div><span>Término</span><strong>{formatarData(contrato.data_fim)}</strong></div>
                                   </div>
 
-                                  <section className="tenant-payment-panel" aria-label={`Cobranças do contrato ${contrato.id}`}>
-                                    <div className="tenant-payment-heading">
-                                      <div>
-                                        <p className="tenant-eyebrow">Financeiro</p>
-                                        <h5>Pagamentos do aluguel</h5>
+                                  {podePagar && (
+                                    <section className="tenant-payment-panel" aria-label={`Cobranças do contrato ${contrato.id}`}>
+                                      <div className="tenant-payment-heading">
+                                        <div>
+                                          <p className="tenant-eyebrow">Financeiro</p>
+                                          <h5>Pagamentos do aluguel</h5>
+                                        </div>
+                                        <div className="tenant-payment-actions">
+                                          <button
+                                            type="button"
+                                            className="tenant-payment-button tenant-payment-button-primary"
+                                            onClick={() => gerarOuExibirBoleto(contrato.id)}
+                                            disabled={Boolean(gerandoCobranca[contrato.id] || carregandoFaturas[contrato.id])}
+                                          >
+                                            {gerandoCobranca[contrato.id] ? "Gerando..." : "Gerar Boleto"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="tenant-payment-button"
+                                            onClick={() => {
+                                              const vaiAbrir = !historicoAberto[contrato.id];
+                                              setHistoricoAberto((atuais) => ({
+                                                ...atuais,
+                                                [contrato.id]: vaiAbrir,
+                                              }));
+                                              if (vaiAbrir) carregarFaturasDoContrato(contrato.id);
+                                            }}
+                                          >
+                                            {historicoAberto[contrato.id]
+                                              ? "Ocultar Histórico"
+                                              : "Ver Histórico de Pagamentos"}
+                                          </button>
+                                        </div>
                                       </div>
-                                      <div className="tenant-payment-actions">
-                                        <button
-                                          type="button"
-                                          className="tenant-payment-button tenant-payment-button-primary"
-                                          onClick={() => gerarOuExibirBoleto(contrato.id)}
-                                          disabled={Boolean(gerandoCobranca[contrato.id] || carregandoFaturas[contrato.id])}
-                                        >
-                                          {gerandoCobranca[contrato.id] ? "Gerando..." : "Gerar Boleto"}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="tenant-payment-button"
-                                          onClick={() => {
-                                            const vaiAbrir = !historicoAberto[contrato.id];
-                                            setHistoricoAberto((atuais) => ({
-                                              ...atuais,
-                                              [contrato.id]: vaiAbrir,
-                                            }));
-                                            if (vaiAbrir) carregarFaturasDoContrato(contrato.id);
-                                          }}
-                                        >
-                                          {historicoAberto[contrato.id]
-                                            ? "Ocultar Histórico"
-                                            : "Ver Histórico de Pagamentos"}
-                                        </button>
-                                      </div>
-                                    </div>
 
-                                    {carregandoFaturas[contrato.id] && (
-                                      <p className="tenant-payment-message">Carregando faturas...</p>
-                                    )}
-                                    {errosFaturas[contrato.id] && (
-                                      <p className="tenant-payment-error" role="alert">{errosFaturas[contrato.id]}</p>
-                                    )}
-                                    {mensagensCobranca[contrato.id] && (
-                                      <p className="tenant-payment-message" role="status">{mensagensCobranca[contrato.id]}</p>
-                                    )}
+                                      {carregandoFaturas[contrato.id] && (
+                                        <p className="tenant-payment-message">Carregando faturas...</p>
+                                      )}
+                                      {errosFaturas[contrato.id] && (
+                                        <p className="tenant-payment-error" role="alert">{errosFaturas[contrato.id]}</p>
+                                      )}
+                                      {mensagensCobranca[contrato.id] && (
+                                        <p className="tenant-payment-message" role="status">{mensagensCobranca[contrato.id]}</p>
+                                      )}
 
-                                    {faturaAtual && (
-                                      <article className="tenant-current-invoice" aria-label="Cobrança atual">
-                                          <div className="tenant-invoice-summary">
-                                            <div>
-                                              <span>Vencimento</span>
-                                              <strong>{formatarData(faturaAtual.data_vencimento)}</strong>
-                                            </div>
-                                            <div>
-                                              <span>Valor</span>
-                                              <strong>{formatarMoeda(faturaAtual.valor)}</strong>
-                                            </div>
-                                            <span className={`tenant-invoice-status ${statusFaturaAtual.classe}`}>
-                                              {statusFaturaAtual.texto}
-                                            </span>
-                                          </div>
-
-                                          {faturaAtualEmAberto && (
-                                            <div className="tenant-invoice-actions">
-                                              {faturaAtual.boleto_pdf_url && (
-                                                <a
-                                                  className="tenant-payment-button"
-                                                  href={faturaAtual.boleto_pdf_url}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                >
-                                                  <ExternalLink size={16} /> Abrir boleto PDF
-                                                </a>
-                                              )}
-                                              {faturaAtual.pix_copia_e_cola && (
-                                                <>
-                                                  <button
-                                                    type="button"
-                                                    className="tenant-payment-button"
-                                                    onClick={() => copiarCodigoPix(faturaAtual.id, faturaAtual.pix_copia_e_cola)}
-                                                  >
-                                                    <Copy size={16} />
-                                                    {pixCopiadoPorFatura[faturaAtual.id] ? "Pix copiado" : "Copiar Pix"}
-                                                  </button>
-                                                  <button
-                                                    type="button"
-                                                    className="tenant-payment-button"
-                                                    onClick={() => alternarQrCodePix(contrato.id, faturaAtual)}
-                                                    disabled={Boolean(carregandoPix[faturaAtual.id])}
-                                                  >
-                                                    <QrCode size={16} />
-                                                    {carregandoPix[faturaAtual.id]
-                                                      ? "Carregando QR..."
-                                                      : qrAbertoPorFatura[faturaAtual.id]
-                                                        ? "Ocultar QR Pix"
-                                                        : "Mostrar QR Pix"}
-                                                  </button>
-                                                </>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          {faturaAtual.pago && (
-                                            <div className="tenant-invoice-actions">
-                                              <button
-                                                type="button"
-                                                className="tenant-payment-button"
-                                                onClick={() => imprimirComprovantePagamento(faturaAtual, contrato, usuario)}
-                                              >
-                                                <Printer size={16} /> Imprimir comprovante
-                                              </button>
-                                            </div>
-                                          )}
-
-                                          {!faturaAtual.asaas_payment_id && (
-                                            <p className="tenant-payment-message">
-                                              A cobrança foi preparada e aparecerá aqui quando o Asaas a emitir.
-                                            </p>
-                                          )}
-
-                                          {errosPix[faturaAtual.id] && (
-                                            <p className="tenant-payment-error" role="alert">{errosPix[faturaAtual.id]}</p>
-                                          )}
-                                          {qrAbertoPorFatura[faturaAtual.id] && imagensPixPorFatura[faturaAtual.id] && (
-                                            <div className="tenant-pix-qr">
-                                              <Image
-                                                src={obterFonteImagemPix(imagensPixPorFatura[faturaAtual.id])}
-                                                alt="QR Code Pix da cobrança atual"
-                                                width={220}
-                                                height={220}
-                                                unoptimized
-                                              />
-                                            </div>
-                                          )}
-                                      </article>
-                                    )}
-
-                                    {historicoAberto[contrato.id] && (
-                                      <div className="tenant-invoice-history">
-                                        <h6>Histórico de pagamentos</h6>
-                                        {!carregandoFaturas[contrato.id] && faturasContrato?.length === 0 && (
-                                          <p className="tenant-payment-message">Ainda não há faturas registradas para este contrato.</p>
-                                        )}
-                                        {faturasContrato?.map((fatura) => {
-                                          const statusFatura = normalizarStatusFatura(fatura.status);
-                                          const faturaEmAberto = faturaEstaEmAberto(fatura);
-
-                                          return (
-                                            <article className="tenant-history-invoice" key={fatura.id}>
-                                              <div className="tenant-history-invoice-data">
-                                                <div>
-                                                  <span>Vencimento</span>
-                                                  <strong>{formatarData(fatura.data_vencimento)}</strong>
-                                                </div>
-                                                <div>
-                                                  <span>Valor</span>
-                                                  <strong>{formatarMoeda(fatura.valor)}</strong>
-                                                </div>
-                                                <span className={`tenant-invoice-status ${statusFatura.classe}`}>
-                                                  {statusFatura.texto}
-                                                </span>
+                                      {faturaAtual && (
+                                        <article className="tenant-current-invoice" aria-label="Cobrança atual">
+                                            <div className="tenant-invoice-summary">
+                                              <div>
+                                                <span>Vencimento</span>
+                                                <strong>{formatarData(faturaAtual.data_vencimento)}</strong>
                                               </div>
-                                              {faturaEmAberto && (
-                                                <div className="tenant-invoice-actions">
-                                                  {fatura.boleto_pdf_url && (
-                                                    <a
-                                                      className="tenant-payment-button"
-                                                      href={fatura.boleto_pdf_url}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                    >
-                                                      <ExternalLink size={16} /> Segunda via do boleto
-                                                    </a>
-                                                  )}
-                                                  {fatura.pix_copia_e_cola && (
+                                              <div>
+                                                <span>Valor</span>
+                                                <strong>{formatarMoeda(faturaAtual.valor)}</strong>
+                                              </div>
+                                              <span className={`tenant-invoice-status ${statusFaturaAtual.classe}`}>
+                                                {statusFaturaAtual.texto}
+                                              </span>
+                                            </div>
+
+                                            {faturaAtualEmAberto && (
+                                              <div className="tenant-invoice-actions">
+                                                {faturaAtual.boleto_pdf_url && (
+                                                  <a
+                                                    className="tenant-payment-button"
+                                                    href={faturaAtual.boleto_pdf_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                  >
+                                                    <ExternalLink size={16} /> Abrir boleto PDF
+                                                  </a>
+                                                )}
+                                                {faturaAtual.pix_copia_e_cola && (
+                                                  <>
                                                     <button
                                                       type="button"
                                                       className="tenant-payment-button"
-                                                      onClick={() => copiarCodigoPix(fatura.id, fatura.pix_copia_e_cola)}
+                                                      onClick={() => copiarCodigoPix(faturaAtual.id, faturaAtual.pix_copia_e_cola)}
                                                     >
                                                       <Copy size={16} />
-                                                      {pixCopiadoPorFatura[fatura.id] ? "Pix copiado" : "Copiar Pix"}
+                                                      {pixCopiadoPorFatura[faturaAtual.id] ? "Pix copiado" : "Copiar Pix"}
                                                     </button>
-                                                  )}
+                                                    <button
+                                                      type="button"
+                                                      className="tenant-payment-button"
+                                                      onClick={() => alternarQrCodePix(contrato.id, faturaAtual)}
+                                                      disabled={Boolean(carregandoPix[faturaAtual.id])}
+                                                    >
+                                                      <QrCode size={16} />
+                                                      {carregandoPix[faturaAtual.id]
+                                                        ? "Carregando QR..."
+                                                        : qrAbertoPorFatura[faturaAtual.id]
+                                                          ? "Ocultar QR Pix"
+                                                          : "Mostrar QR Pix"}
+                                                    </button>
+                                                  </>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {faturaAtual.pago && (
+                                              <div className="tenant-invoice-actions">
+                                                <button
+                                                  type="button"
+                                                  className="tenant-payment-button"
+                                                  onClick={() => imprimirComprovantePagamento(faturaAtual, contrato, usuario)}
+                                                >
+                                                  <Printer size={16} /> Imprimir comprovante
+                                                </button>
+                                              </div>
+                                            )}
+
+                                            {!faturaAtual.asaas_payment_id && (
+                                              <p className="tenant-payment-message">
+                                                A cobrança foi preparada e aparecerá aqui quando o Asaas a emitir.
+                                              </p>
+                                            )}
+
+                                            {errosPix[faturaAtual.id] && (
+                                              <p className="tenant-payment-error" role="alert">{errosPix[faturaAtual.id]}</p>
+                                            )}
+                                            {qrAbertoPorFatura[faturaAtual.id] && imagensPixPorFatura[faturaAtual.id] && (
+                                              <div className="tenant-pix-qr">
+                                                <Image
+                                                  src={obterFonteImagemPix(imagensPixPorFatura[faturaAtual.id])}
+                                                  alt="QR Code Pix da cobrança atual"
+                                                  width={220}
+                                                  height={220}
+                                                  unoptimized
+                                                />
+                                              </div>
+                                            )}
+                                        </article>
+                                      )}
+
+                                      {historicoAberto[contrato.id] && (
+                                        <div className="tenant-invoice-history">
+                                          <h6>Histórico de pagamentos</h6>
+                                          {!carregandoFaturas[contrato.id] && faturasContrato?.length === 0 && (
+                                            <p className="tenant-payment-message">Ainda não há faturas registradas para este contrato.</p>
+                                          )}
+                                          {faturasContrato?.map((fatura) => {
+                                            const statusFatura = normalizarStatusFatura(fatura.status);
+                                            const faturaEmAberto = faturaEstaEmAberto(fatura);
+
+                                            return (
+                                              <article className="tenant-history-invoice" key={fatura.id}>
+                                                <div className="tenant-history-invoice-data">
+                                                  <div>
+                                                    <span>Vencimento</span>
+                                                    <strong>{formatarData(fatura.data_vencimento)}</strong>
+                                                  </div>
+                                                  <div>
+                                                    <span>Valor</span>
+                                                    <strong>{formatarMoeda(fatura.valor)}</strong>
+                                                  </div>
+                                                  <span className={`tenant-invoice-status ${statusFatura.classe}`}>
+                                                    {statusFatura.texto}
+                                                  </span>
                                                 </div>
-                                              )}
-                                              {fatura.pago && (
-                                                <div className="tenant-invoice-actions">
-                                                  <button
-                                                    type="button"
-                                                    className="tenant-payment-button"
-                                                    onClick={() => imprimirComprovantePagamento(fatura, contrato, usuario)}
-                                                  >
-                                                    <Printer size={16} /> Imprimir comprovante
-                                                  </button>
-                                                </div>
-                                              )}
-                                            </article>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </section>
+                                                {faturaEmAberto && (
+                                                  <div className="tenant-invoice-actions">
+                                                    {fatura.boleto_pdf_url && (
+                                                      <a
+                                                        className="tenant-payment-button"
+                                                        href={fatura.boleto_pdf_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                      >
+                                                        <ExternalLink size={16} /> Segunda via do boleto
+                                                      </a>
+                                                    )}
+                                                    {fatura.pix_copia_e_cola && (
+                                                      <button
+                                                        type="button"
+                                                        className="tenant-payment-button"
+                                                        onClick={() => copiarCodigoPix(fatura.id, fatura.pix_copia_e_cola)}
+                                                      >
+                                                        <Copy size={16} />
+                                                        {pixCopiadoPorFatura[fatura.id] ? "Pix copiado" : "Copiar Pix"}
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                )}
+                                                {fatura.pago && (
+                                                  <div className="tenant-invoice-actions">
+                                                    <button
+                                                      type="button"
+                                                      className="tenant-payment-button"
+                                                      onClick={() => imprimirComprovantePagamento(fatura, contrato, usuario)}
+                                                    >
+                                                      <Printer size={16} /> Imprimir comprovante
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </article>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </section>
+                                  )}
                                 </>
                               )}
                             </div>

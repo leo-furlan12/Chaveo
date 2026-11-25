@@ -3,6 +3,7 @@
 import Logo from "../components/Logo";
 import Checkbox from "../components/Checkbox";
 import Button from "../components/Button";
+import { lerPerfisDoToken, listarAreas } from "../components/TrocarPerfil";
 import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,6 +18,10 @@ function ConteudoLogin() {
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [areas, setAreas] = useState([]);
+  const destinoSolicitado = redirect && /^\/(?![\/\\])/.test(redirect) && !/[\\\x00-\x20]/.test(redirect)
+    ? redirect
+    : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -49,38 +54,55 @@ function ConteudoLogin() {
       sessionStorage.setItem("token", tokenRecebido);
       setMensagem("Login realizado com sucesso!");
 
-      let payloadToken = {};
-      try {
-        if (tokenRecebido) {
-          payloadToken = JSON.parse(atob(tokenRecebido.split(".")[1]));
-        }
-      } catch {}
+      const areasDisponiveis = listarAreas(
+        dados.perfis ?? dados.usuario?.perfis ?? lerPerfisDoToken(tokenRecebido),
+      );
 
-      const origemPerfis =
-        dados?.perfis ||
-        dados?.usuario?.perfis ||
-        payloadToken?.perfis ||
-        [];
+      const veioDoConvite = destinoSolicitado?.startsWith("/ConviteContrato?");
+      const acabouDeAceitarConvite = searchParams.get("origem") === "convite" &&
+        destinoSolicitado?.startsWith("/CompletarContrato?");
 
-      const perfis = Array.isArray(origemPerfis)
-        ? origemPerfis.map((p) => String(p).toUpperCase())
-        : [String(origemPerfis).toUpperCase()];
-
-      if (redirect && redirect.startsWith("/")) {
-        router.replace(redirect);
-      } else if (perfis.includes("INQUILINO")) {
-        router.replace("/dashboardInquilino");
-      } else if (perfis.includes("PROPRIETARIO")) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/dashboardteste");
+      if (veioDoConvite || acabouDeAceitarConvite) {
+        router.replace(destinoSolicitado);
+        return;
       }
+
+      if (areasDisponiveis.length > 1) {
+        setAreas(areasDisponiveis);
+        return;
+      }
+
+      router.replace(destinoSolicitado || areasDisponiveis[0]?.href || "/dashboardteste");
     } catch {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
     } finally {
       setCarregando(false);
     }
+  }
+
+  if (areas.length > 1) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-ink p-4 text-paper">
+        <section aria-labelledby="escolher-perfil" className="w-full max-w-md rounded-2xl border border-teal/30 bg-ink-soft p-6 sm:p-8">
+          <h1 id="escolher-perfil" tabIndex={-1} ref={(titulo) => titulo?.focus()} className="text-2xl font-semibold">
+            Com qual perfil você quer entrar?
+          </h1>
+          <div className="mt-6 grid gap-3">
+            {areas.map(({ perfil, nome, href }) => (
+              <button
+                key={perfil}
+                type="button"
+                onClick={() => router.replace(href)}
+                className="rounded-lg border border-teal/40 bg-teal/10 px-4 py-3 text-left font-semibold hover:bg-teal/20"
+              >
+                {nome}
+              </button>
+            ))}
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

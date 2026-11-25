@@ -22,7 +22,6 @@ async cadastrar(@Body() body: any) {
     nacionalidade,
     estado_civil,
     profissao,
-    chave_pix,
     perfil,
     convite_token,
     cidade,
@@ -111,8 +110,6 @@ async cadastrar(@Body() body: any) {
           nacionalidade: nacionalidade || 'Brasileira',
           estado_civil: estado_civil || 'SOLTEIRO',
           profissao: profissao || null,
-          chave_pix: chave_pix || null,
-          ativo: true,
         });
 
         usuarioSalvo = await manager.save(novoUsuario);
@@ -135,9 +132,15 @@ async cadastrar(@Body() body: any) {
 
         if (!prestadorId) {
           const insercaoPrestador = await manager.query(
-            `INSERT INTO prestadores ( usuario_id, descricao, cidade, estado)
-             VALUES ( $1, $2, $3, $4) RETURNING id`,
-            [usuarioSalvo.id, descricao || '', cidade || '', estado || ''],
+            `INSERT INTO prestadores (usuario_id, descricao, cidade, estado, categoria_id)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [
+              usuarioSalvo.id,
+              descricao || '',
+              cidade || '',
+              estado || '',
+              /^[1-8]$/.test(String(categoria_id)) ? Number(categoria_id) : null,
+            ],
           );
           prestadorId = insercaoPrestador[0]?.id;
         }

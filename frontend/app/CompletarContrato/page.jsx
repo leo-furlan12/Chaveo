@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Upload, FileCheck2, CheckCircle2 } from "lucide-react";
 
@@ -73,9 +74,7 @@ function ConteudoCompletarContrato() {
         if (dados.renda_mensal_locatario) {
           setRendaMensal(String(dados.renda_mensal_locatario));
         }
-        if (dados.ocupacao_locatario) {
-          setOcupacao(dados.ocupacao_locatario);
-        }
+        setOcupacao(dados.locatario?.profissao || dados.ocupacao_locatario || "");
         if (dados.documentos_locatario?.length > 0) {
           setFichaSalva(true);
         }
@@ -172,8 +171,10 @@ function ConteudoCompletarContrato() {
         ...prev,
         renda_mensal_locatario: dados.renda_mensal_locatario,
         ocupacao_locatario: dados.ocupacao_locatario,
+        locatario: { ...prev.locatario, profissao: dados.ocupacao_locatario },
         documentos_locatario: dados.documentos_locatario,
       }));
+      setOcupacao(dados.ocupacao_locatario);
       setFichaSalva(true);
       setMensagem("Ficha cadastral e documentos enviados com sucesso!");
     } catch {
@@ -303,6 +304,7 @@ function ConteudoCompletarContrato() {
 useEffect(() => {
   if (!contrato) return;
   if (
+    contrato.status !== "PENDENTE_DADOS" &&
     contrato.status !== "AGUARDANDO_REVISAO" &&
     contrato.status !== "AGUARDANDO_ASSINATURAS"
   ) {
@@ -392,6 +394,12 @@ async function baixarDocumentoContrato(endpoint, nomeArquivo) {
 
            {contrato.status !== "PENDENTE_DADOS" ? (
   <div className="space-y-4">
+    {contrato.status === "CANCELADO" && (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        O proprietário cancelou este contrato.
+      </div>
+    )}
+
     {contrato.status === "AGUARDANDO_REVISAO" && (
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-900">
         <p className="font-bold">Ficha cadastral enviada para análise</p>
@@ -399,6 +407,12 @@ async function baixarDocumentoContrato(endpoint, nomeArquivo) {
           O proprietário está avaliando seus dados e documentos. Esta tela
           atualiza automaticamente assim que houver uma resposta.
         </p>
+        <Link
+          href="/dashboardInquilino"
+          className="mt-4 inline-flex rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-ink hover:opacity-90"
+        >
+          Ir para o dashboard
+        </Link>
       </div>
     )}
 
@@ -516,10 +530,17 @@ async function baixarDocumentoContrato(endpoint, nomeArquivo) {
                       <input
                         type="text"
                         value={ocupacao}
+                        maxLength={150}
+                        readOnly={Boolean(contrato.locatario?.profissao?.trim())}
                         onChange={(e) => setOcupacao(e.target.value)}
                         className="w-full border border-slate-300 rounded-lg p-2.5"
                         placeholder="Ex: Analista de Sistemas - Empresa X"
                       />
+                      {contrato.locatario?.profissao?.trim() && (
+                        <p className="mt-1 text-sm text-slate-600">
+                          Usando a profissão do seu perfil. <Link href={`/perfil?contrato=${encodeURIComponent(contratoId)}`} className="underline">Editar perfil</Link>
+                        </p>
+                      )}
                     </div>
                   </div>
 

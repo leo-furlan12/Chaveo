@@ -76,10 +76,10 @@ function ConteudoCadastroContrato() {
             if (respContrato.ok) {
               const contratoExistente = await respContrato.json();
 
-              // Se o contrato anterior foi recusado e clicou em "Iniciar Novo Contrato", libera o formulário limpo
+              // Libera o formulário para um novo contrato após recusa ou cancelamento.
               if (
                 modoNovo &&
-                contratoExistente.status === "CADASTRO_RECUSADO"
+                ["CADASTRO_RECUSADO", "CANCELADO"].includes(contratoExistente.status)
               ) {
                 return;
               }

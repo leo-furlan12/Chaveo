@@ -1,8 +1,10 @@
 "use client";
 
+import TrocarPerfil, { BotaoPerfil } from "../components/TrocarPerfil";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ModalImovel from "./ModalImovel";
 import {
   Building2,
   Home,
@@ -31,6 +33,7 @@ export default function DashboardProprietario() {
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [filtroTipo, setFiltroTipo] = useState("TODOS");
   const [avisoRegra, setAvisoRegra] = useState("");
+  const [imovelSelecionado, setImovelSelecionado] = useState(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -212,10 +215,12 @@ export default function DashboardProprietario() {
               <Wallet size={18} />
               <span>Controle de Pagamentos</span>
             </button>
+            <BotaoPerfil perfilAtual="PROPRIETARIO" className="nav-item" />
           </nav>
         </div>
 
-        <div className="sidebar-footer">
+        <div className="sidebar-footer space-y-3">
+          <TrocarPerfil perfilAtual="PROPRIETARIO" />
           <div className="user-card">
             <div className="user-info">
               <div className="user-avatar">PR</div>
@@ -224,7 +229,7 @@ export default function DashboardProprietario() {
                 <p className="user-role">Conta Ativa</p>
               </div>
             </div>
-            <Link href="/login" className="logout-btn" title="Sair">
+            <Link href="/login" className="logout-btn" title="Sair" onClick={() => sessionStorage.removeItem("token")}>
               <LogOut size={18} />
             </Link>
           </div>
@@ -454,12 +459,9 @@ export default function DashboardProprietario() {
                             <td className="actions-cell">
                               <button
                                 className="action-btn-view"
-                                title="Ver Detalhes"
-                                onClick={() =>
-                                  setAvisoRegra(
-                                    `Imóvel #${imovel.id}: ${imovel.logradouro}, ${imovel.numero} (${imovel.bairro} - ${imovel.cidade}/${imovel.estado}) | Status: ${imovel.status}`,
-                                  )
-                                }
+                                title="Ver imóvel"
+                                aria-label="Ver imóvel"
+                                onClick={() => setImovelSelecionado(imovel)}
                               >
                                 <Eye size={17} />
                               </button>
@@ -513,6 +515,13 @@ export default function DashboardProprietario() {
           )}
         </div>
       </main>
+      {imovelSelecionado && (
+        <ModalImovel
+          apiUrl={apiUrl}
+          imovel={imovelSelecionado}
+          onFechar={() => setImovelSelecionado(null)}
+        />
+      )}
     </div>
   );
 }

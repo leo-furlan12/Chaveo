@@ -25,7 +25,7 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs';
 
 
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { Contrato } from '../database/entities/contrato.entity';
 import { Imovel } from '../database/entities/imovel.entity';
 import { AuthGuard } from '../auth/auth.guard';
@@ -344,45 +344,48 @@ if (!indicesPermitidos.includes(indice_reajuste)) {
     // pega o usuario logado
     const usuarioId = (request as any).user.sub;
 
-    // procura o contrato pelo id
-    const contrato = await this.contratoRepository.findOne({
-      where: { id },
+    return this.contratoRepository.manager.transaction(async (manager) => {
+      // procura o contrato pelo id
+      const contrato = await manager.findOne(Contrato, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      // verifica se o contrato existe
+      if (!contrato) {
+        throw new NotFoundException('Contrato não encontrado');
+      }
+
+      // verifica se o usuario é o locador
+      if (String(contrato.locador_id) !== String(usuarioId)) {
+        throw new ForbiddenException('Você não pode gerar convite para este contrato');
+      }
+
+      // permite gerar convite apenas na etapa correta
+      if (
+        contrato.status !== 'RASCUNHO' &&
+        contrato.status !== 'AGUARDANDO_INQUILINO'
+      ) {
+        throw new BadRequestException('Este contrato não permite gerar convite');
+      }
+
+      // gera o codigo apenas se ainda nao existir
+      if (!contrato.convite_token) {
+        contrato.convite_token = randomBytes(32).toString('hex');
+      }
+
+      // atualiza o andamento do contrato
+      contrato.status = 'AGUARDANDO_INQUILINO';
+
+      // salva as alteracoes no banco
+      await manager.save(Contrato, contrato);
+
+      return {
+        mensagem: 'Convite gerado com sucesso',
+        convite_token: contrato.convite_token,
+        status: contrato.status,
+      };
     });
-
-    // verifica se o contrato existe
-    if (!contrato) {
-      throw new NotFoundException('Contrato não encontrado');
-    }
-
-    // verifica se o usuario é o locador
-    if (String(contrato.locador_id) !== String(usuarioId)) {
-      throw new ForbiddenException('Você não pode gerar convite para este contrato');
-    }
-
-    // permite gerar convite apenas na etapa correta
-    if (
-      contrato.status !== 'RASCUNHO' &&
-      contrato.status !== 'AGUARDANDO_INQUILINO'
-    ) {
-      throw new BadRequestException('Este contrato não permite gerar convite');
-    }
-
-    // gera o codigo apenas se ainda nao existir
-    if (!contrato.convite_token) {
-      contrato.convite_token = randomBytes(32).toString('hex');
-    }
-
-    // atualiza o andamento do contrato
-    contrato.status = 'AGUARDANDO_INQUILINO';
-
-    // salva as alteracoes no banco
-    await this.contratoRepository.save(contrato);
-
-    return {
-      mensagem: 'Convite gerado com sucesso',
-      convite_token: contrato.convite_token,
-      status: contrato.status,
-    };
   }
   @Get('meus-convites')
   @UseGuards(AuthGuard)
@@ -626,6 +629,43 @@ async consultarConvite(
     });
   }
 
+  @Post(':id/cancelar')
+  @UseGuards(AuthGuard)
+  async cancelarContrato(@Param('id') id: string, @Req() request: Request) {
+    const usuarioId = String((request as any).user.sub);
+    const contrato = await this.contratoRepository.findOne({ where: { id } });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (String(contrato.locador_id) !== usuarioId) {
+      throw new ForbiddenException('Apenas o proprietário pode cancelar o contrato');
+    }
+
+    const resultado = await this.contratoRepository.update(
+      { id, locador_id: usuarioId, status: In(['AGUARDANDO_INQUILINO', 'PENDENTE_DADOS']) },
+      { status: 'CANCELADO', convite_token: null },
+    );
+
+    if (!resultado.affected) {
+      throw new BadRequestException('O contrato só pode ser cancelado enquanto aguarda o aceite ou os dados do inquilino.');
+    }
+
+    return { status: 'CANCELADO', mensagem: 'Contrato cancelado com sucesso.' };
+  }
+
+  private async atualizarContratoPendente(id: string, dados: Partial<Contrato>) {
+    const resultado = await this.contratoRepository.update(
+      { id, status: 'PENDENTE_DADOS' },
+      dados,
+    );
+
+    if (!resultado.affected) {
+      throw new BadRequestException('O contrato não está mais aguardando os dados do inquilino.');
+    }
+  }
+
   // inquilino cadastra os dados do fiador
   @Post(':id/fiador')
   @UseGuards(AuthGuard)
@@ -692,7 +732,12 @@ async consultarConvite(
     contrato.fiador_qualificacao = qualificacao;
     contrato.fiador_imovel = imovel;
 
-    await this.contratoRepository.save(contrato);
+    await this.atualizarContratoPendente(id, {
+      fiador_nome: contrato.fiador_nome,
+      fiador_cpf: contrato.fiador_cpf,
+      fiador_qualificacao: contrato.fiador_qualificacao,
+      fiador_imovel: contrato.fiador_imovel,
+    });
 
     return {
       mensagem: 'Dados do fiador salvos com sucesso',
@@ -753,7 +798,10 @@ async consultarConvite(
     contrato.seguro_seguradora = seguradora;
     contrato.seguro_apolice = apolice;
 
-    await this.contratoRepository.save(contrato);
+    await this.atualizarContratoPendente(id, {
+      seguro_seguradora: contrato.seguro_seguradora,
+      seguro_apolice: contrato.seguro_apolice,
+    });
 
     return {
       mensagem: 'Dados do seguro-fiança salvos com sucesso',
@@ -824,7 +872,9 @@ async consultarConvite(
     // libera o contrato para revisao
     contrato.status = 'AGUARDANDO_REVISAO';
 
-    await this.contratoRepository.save(contrato);
+    await this.atualizarContratoPendente(id, {
+      status: contrato.status,
+    });
 
     return {
       mensagem: 'Dados concluídos com sucesso',
@@ -834,6 +884,44 @@ async consultarConvite(
   }
 
   // Busca o contrato do imóvel selecionado pelo proprietário
+  @Get('imovel/:imovelId/historico')
+  @UseGuards(AuthGuard)
+  async listarHistoricoDoImovel(
+    @Param('imovelId') imovelId: string,
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+    const imovel = await this.imovelRepository.findOne({ where: { id: imovelId } });
+
+    if (!imovel) {
+      throw new NotFoundException('Imóvel não encontrado');
+    }
+
+    if (String(imovel.proprietario_id) !== usuarioId) {
+      throw new ForbiddenException('Este imóvel não pertence a você');
+    }
+
+    const contratos = await this.contratoRepository.find({
+      where: { imovel_id: imovelId, locador_id: usuarioId },
+      relations: { locatario: true },
+      order: { id: 'DESC' },
+    });
+
+    return contratos.map((contrato) => ({
+      id: contrato.id,
+      status: contrato.status,
+      data_inicio: contrato.data_inicio,
+      data_fim: contrato.data_fim,
+      valor_aluguel: contrato.valor_aluguel,
+      cpf_convidado: contrato.cpf_locatario,
+      inquilino: contrato.locatario ? {
+        nome: contrato.locatario.nome,
+        cpf: contrato.locatario.cpf,
+        telefone: contrato.locatario.telefone,
+      } : null,
+    }));
+  }
+
   @Get('imovel/:imovelId')
   @UseGuards(AuthGuard)
   async buscarPorImovel(
@@ -1221,14 +1309,10 @@ async gerarPdf(
     }
 
     const rendaMensal = Number(body?.renda_mensal);
-    const ocupacao = String(body?.ocupacao || '').trim();
+    const ocupacaoInformada = typeof body?.ocupacao === 'string' ? body.ocupacao.trim() : '';
 
-    if (!rendaMensal || rendaMensal <= 0) {
+    if (!Number.isFinite(rendaMensal) || rendaMensal <= 0) {
       throw new BadRequestException('Informe uma renda mensal válida');
-    }
-
-    if (!ocupacao) {
-      throw new BadRequestException('Informe sua ocupação ou profissão atual');
     }
 
     let tiposDocumentos: string[] = [];
@@ -1240,10 +1324,6 @@ async gerarPdf(
       }
     }
 
-    const documentosExistentes = Array.isArray(contrato.documentos_locatario)
-      ? contrato.documentos_locatario
-      : [];
-
     const novosDocumentos = (arquivos || []).map((arq, idx) => ({
       tipo: tiposDocumentos[idx] || 'Comprovante',
       nome_original: arq.originalname,
@@ -1251,27 +1331,53 @@ async gerarPdf(
       mimetype: arq.mimetype,
     }));
 
-    const listaFinalDocumentos = [...documentosExistentes, ...novosDocumentos];
+    return this.contratoRepository.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(Usuario, {
+        where: { id: usuarioId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!usuario) throw new NotFoundException('Usuário não encontrado.');
 
-    if (listaFinalDocumentos.length === 0) {
-      throw new BadRequestException(
-        'Anexe pelo menos um documento comprobatório (RG/CNH ou comprovante de renda)',
+      const profissaoCadastrada = usuario.profissao?.trim();
+      const ocupacao = profissaoCadastrada || ocupacaoInformada;
+      if (!ocupacao || ocupacao.length > 150) {
+        throw new BadRequestException('Informe uma ocupação de até 150 caracteres.');
+      }
+
+      const contratoAtual = await manager.findOne(Contrato, {
+        where: { id, status: 'PENDENTE_DADOS', locatario_id: usuarioId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!contratoAtual) {
+        throw new BadRequestException('O contrato não está mais aguardando os dados do inquilino.');
+      }
+
+      const listaFinalDocumentos = [...(contratoAtual.documentos_locatario ?? []), ...novosDocumentos];
+      if (listaFinalDocumentos.length === 0) {
+        throw new BadRequestException('Anexe pelo menos um documento comprobatório.');
+      }
+
+      await manager.update(
+        Contrato,
+        id,
+        {
+          renda_mensal_locatario: rendaMensal,
+          ocupacao_locatario: ocupacao,
+          documentos_locatario: listaFinalDocumentos,
+          status_analise_cadastral: 'PENDENTE',
+        },
       );
-    }
+      if (!profissaoCadastrada) {
+        await manager.update(Usuario, usuarioId, { profissao: ocupacao });
+      }
 
-    contrato.renda_mensal_locatario = rendaMensal;
-    contrato.ocupacao_locatario = ocupacao;
-    contrato.documentos_locatario = listaFinalDocumentos;
-    contrato.status_analise_cadastral = 'PENDENTE';
-
-    await this.contratoRepository.save(contrato);
-
-    return {
-      message: 'Ficha cadastral e documentos salvos com sucesso!',
-      renda_mensal_locatario: contrato.renda_mensal_locatario,
-      ocupacao_locatario: contrato.ocupacao_locatario,
-      documentos_locatario: contrato.documentos_locatario,
-    };
+      return {
+        message: 'Ficha cadastral e documentos salvos com sucesso!',
+        renda_mensal_locatario: rendaMensal,
+        ocupacao_locatario: ocupacao,
+        documentos_locatario: listaFinalDocumentos,
+      };
+    });
   }
 
   // 2. Visualizar/baixar documento anexado pelo inquilino (protegido por JWT)
@@ -1513,72 +1619,75 @@ async gerarPdf(
   ) {
     const usuarioId = String((request as any).user.sub);
 
-    const contrato = await this.contratoRepository.findOne({
-      where: { id },
-    });
+    return this.contratoRepository.manager.transaction(async (manager) => {
+      const contrato = await manager.findOne(Contrato, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    if (!contrato) {
-      throw new NotFoundException('Contrato não encontrado');
-    }
-
-    if (String(contrato.locador_id) !== usuarioId) {
-      throw new ForbiddenException('Apenas o proprietário pode editar o contrato');
-    }
-
-    if (
-      contrato.status !== 'RASCUNHO' &&
-      contrato.status !== 'AGUARDANDO_INQUILINO'
-    ) {
-      throw new BadRequestException(
-        'Não é possível editar o contrato após o inquilino aceitar o convite',
-      );
-    }
-
-    if (body.cpf_locatario !== undefined) {
-      const cpfLimpo = String(body.cpf_locatario).replace(/\D/g, '');
-      if (cpfLimpo.length !== 11) {
-        throw new BadRequestException('Informe um CPF válido com 11 dígitos');
+      if (!contrato) {
+        throw new NotFoundException('Contrato não encontrado');
       }
-      contrato.cpf_locatario = cpfLimpo;
-    }
 
-    if (body.valor_aluguel !== undefined) {
-      contrato.valor_aluguel = String(Number(body.valor_aluguel));
-    
-    }
-    if (body.data_inicio !== undefined) {
-      contrato.data_inicio = body.data_inicio;
-    }
-    if (body.data_fim !== undefined) {
-      contrato.data_fim = body.data_fim;
-    }
-    if (body.dia_vencimento !== undefined) {
-      contrato.dia_vencimento = Number(body.dia_vencimento);
-    }
-    if (body.indice_reajuste !== undefined) {
-      contrato.indice_reajuste = body.indice_reajuste;
-    }
-    if (body.despesas_inclusas !== undefined) {
-      contrato.despesas_inclusas = Array.isArray(body.despesas_inclusas)
-        ? body.despesas_inclusas
-        : [];
-    }
-    if (body.garantia !== undefined) {
-      contrato.garantia = body.garantia;
-      contrato.tipo_caucao =
-        body.garantia === 'caucao' ? body.tipo_caucao || null : null;
-      contrato.valor_caucao =
-        body.garantia === 'caucao' && body.tipo_caucao === 'negociado'
-          ? String(Number(body.valor_caucao))
-          : null;
-    }
+      if (String(contrato.locador_id) !== usuarioId) {
+        throw new ForbiddenException('Apenas o proprietário pode editar o contrato');
+      }
 
-    await this.contratoRepository.save(contrato);
+      if (
+        contrato.status !== 'RASCUNHO' &&
+        contrato.status !== 'AGUARDANDO_INQUILINO'
+      ) {
+        throw new BadRequestException(
+          'Não é possível editar o contrato após o inquilino aceitar o convite',
+        );
+      }
 
-    return {
-      message: 'Contrato atualizado com sucesso!',
-      contrato,
-    };
+      if (body.cpf_locatario !== undefined) {
+        const cpfLimpo = String(body.cpf_locatario).replace(/\D/g, '');
+        if (cpfLimpo.length !== 11) {
+          throw new BadRequestException('Informe um CPF válido com 11 dígitos');
+        }
+        contrato.cpf_locatario = cpfLimpo;
+      }
+
+      if (body.valor_aluguel !== undefined) {
+        contrato.valor_aluguel = String(Number(body.valor_aluguel));
+
+      }
+      if (body.data_inicio !== undefined) {
+        contrato.data_inicio = body.data_inicio;
+      }
+      if (body.data_fim !== undefined) {
+        contrato.data_fim = body.data_fim;
+      }
+      if (body.dia_vencimento !== undefined) {
+        contrato.dia_vencimento = Number(body.dia_vencimento);
+      }
+      if (body.indice_reajuste !== undefined) {
+        contrato.indice_reajuste = body.indice_reajuste;
+      }
+      if (body.despesas_inclusas !== undefined) {
+        contrato.despesas_inclusas = Array.isArray(body.despesas_inclusas)
+          ? body.despesas_inclusas
+          : [];
+      }
+      if (body.garantia !== undefined) {
+        contrato.garantia = body.garantia;
+        contrato.tipo_caucao =
+          body.garantia === 'caucao' ? body.tipo_caucao || null : null;
+        contrato.valor_caucao =
+          body.garantia === 'caucao' && body.tipo_caucao === 'negociado'
+            ? String(Number(body.valor_caucao))
+            : null;
+      }
+
+      await manager.save(Contrato, contrato);
+
+      return {
+        message: 'Contrato atualizado com sucesso!',
+        contrato,
+      };
+    });
   }
 
   // proprietário informa seguradora e apólice quando garantia === 'seguro'
@@ -1623,7 +1732,13 @@ async gerarPdf(
     contrato.seguro_seguradora = seguradora;
     contrato.seguro_apolice = apolice;
 
-    await this.contratoRepository.save(contrato);
+    const resultado = await this.contratoRepository.update(
+      { id, status: Not('CANCELADO') },
+      { seguro_seguradora: seguradora, seguro_apolice: apolice },
+    );
+    if (!resultado.affected) {
+      throw new BadRequestException('Este contrato foi cancelado.');
+    }
 
     return {
       message: 'Dados do seguro-fiança salvos com sucesso!',

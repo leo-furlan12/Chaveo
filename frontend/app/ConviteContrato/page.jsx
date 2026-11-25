@@ -127,7 +127,7 @@ export default function ConviteContrato() {
 
       if (dados.perfil_adicionado) {
         sessionStorage.removeItem("token");
-        router.replace(`/login?redirect=${encodeURIComponent(destino)}`);
+        router.replace(`/login?origem=convite&redirect=${encodeURIComponent(destino)}`);
         return;
       }
 
