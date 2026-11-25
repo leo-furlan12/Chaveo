@@ -110,6 +110,7 @@ async cadastrar(@Body() body: any) {
           nacionalidade: nacionalidade || 'Brasileira',
           estado_civil: estado_civil || 'SOLTEIRO',
           profissao: profissao || null,
+          ativo: true,
         });
 
         usuarioSalvo = await manager.save(novoUsuario);

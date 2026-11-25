@@ -11,6 +11,7 @@ import { timingSafeEqual } from 'crypto';
 import { DataSource } from 'typeorm';
 import { Contrato } from '../database/entities/contrato.entity';
 import { Fatura } from '../database/entities/fatura.entity';
+import { AsaasRepasseService } from './asaas-repasse.service';
 
 interface PagamentoWebhookAsaas {
   id?: string;
@@ -28,6 +29,15 @@ interface EventoWebhookAsaas {
   id?: string;
   event?: string;
   payment?: PagamentoWebhookAsaas;
+  transfer?: TransferenciaWebhookAsaas;
+}
+
+interface TransferenciaWebhookAsaas {
+  id?: string;
+  status?: string;
+  externalReference?: string;
+  value?: number;
+  failReason?: string | null;
 }
 
 interface EventoFilaAsaas {
@@ -35,6 +45,8 @@ interface EventoFilaAsaas {
   tipo: string;
   asaas_payment_id: string | null;
   dados_pagamento: PagamentoWebhookAsaas | null;
+  asaas_transfer_id: string | null;
+  dados_transferencia: TransferenciaWebhookAsaas | null;
   tentativas: number;
 }
 
@@ -45,13 +57,25 @@ const EVENTOS_DE_PAGAMENTO = new Set([
   'PAYMENT_OVERDUE',
 ]);
 
+const EVENTOS_DE_TRANSFERENCIA = new Set([
+  'TRANSFER_PENDING',
+  'TRANSFER_DONE',
+  'TRANSFER_FAILED',
+  'TRANSFER_CANCELLED',
+  'TRANSFER_IN_BANK_PROCESSING',
+  'TRANSFER_BLOCKED',
+]);
+
 @Injectable()
 export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AsaasWebhookService.name);
   private temporizador: NodeJS.Timeout | null = null;
   private processandoFila = false;
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly asaasRepasseService: AsaasRepasseService,
+  ) {}
 
   // Inicia o consumidor persistente para retomar eventos após reinício do backend.
   onModuleInit(): void {
@@ -87,8 +111,14 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
 
     const pagamento = corpo.payment;
     const pagamentoId = typeof pagamento?.id === 'string' ? pagamento.id : null;
+    const transferencia = corpo.transfer;
+    const transferenciaId = typeof transferencia?.id === 'string'
+      ? transferencia.id
+      : null;
     const eventoProcessavel = Boolean(
-      pagamentoId && EVENTOS_DE_PAGAMENTO.has(corpo.event),
+      (pagamentoId && EVENTOS_DE_PAGAMENTO.has(corpo.event)) ||
+      ((transferenciaId || transferencia?.externalReference) &&
+        EVENTOS_DE_TRANSFERENCIA.has(corpo.event)),
     );
 
     // Copia somente campos de cobrança necessários para não guardar dados pessoais enviados no webhook.
@@ -106,12 +136,24 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
         }
       : null;
 
+    // Persiste somente campos financeiros da transferência necessários para conciliação.
+    const dadosTransferencia = transferencia
+      ? {
+          id: transferencia.id,
+          status: transferencia.status,
+          externalReference: transferencia.externalReference,
+          value: transferencia.value,
+          failReason: transferencia.failReason,
+        }
+      : null;
+
     // O conflito no ID significa que o Asaas reenviou um evento já recebido.
     const inseridos = await this.dataSource.query(
       `
         INSERT INTO "asaas_webhook_eventos"
-          ("id", "tipo", "asaas_payment_id", "dados_pagamento", "status_processamento")
-        VALUES ($1, $2, $3, $4::jsonb, $5)
+          ("id", "tipo", "asaas_payment_id", "dados_pagamento", "asaas_transfer_id",
+           "dados_transferencia", "status_processamento")
+        VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb, $7)
         ON CONFLICT ("id") DO NOTHING
         RETURNING "id"
       `,
@@ -120,6 +162,8 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
         corpo.event,
         pagamentoId,
         dadosPagamento ? JSON.stringify(dadosPagamento) : null,
+        transferenciaId,
+        dadosTransferencia ? JSON.stringify(dadosTransferencia) : null,
         eventoProcessavel ? 'PENDENTE' : 'IGNORADO',
       ],
     );
@@ -179,7 +223,8 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
       FROM "proximo_evento"
       WHERE evento."id" = "proximo_evento"."id"
       RETURNING evento."id", evento."tipo", evento."asaas_payment_id",
-                evento."dados_pagamento", evento."tentativas"
+                evento."dados_pagamento", evento."asaas_transfer_id",
+                evento."dados_transferencia", evento."tentativas"
     `)) as EventoFilaAsaas[];
 
     return eventos[0] || null;
@@ -216,6 +261,13 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
 
   // Atualiza ou cria a fatura correspondente ao pagamento enviado no evento.
   private async processarEvento(evento: EventoFilaAsaas): Promise<boolean> {
+    if (EVENTOS_DE_TRANSFERENCIA.has(evento.tipo)) {
+      return this.asaasRepasseService.processarEventoTransferencia(
+        evento.tipo,
+        evento.dados_transferencia,
+      );
+    }
+
     const pagamento = evento.dados_pagamento;
     if (!pagamento?.id || !pagamento.dueDate) return false;
 
@@ -250,7 +302,7 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
 
     const statusRecebido = this.obterStatusFatura(evento.tipo, pagamento.status);
 
-    await this.dataSource.transaction(async (gerenciador) => {
+    const faturaAtualizada = await this.dataSource.transaction(async (gerenciador) => {
       const repositorioFatura = gerenciador.getRepository(Fatura);
       let fatura = await repositorioFatura.findOne({
         where: { asaas_payment_id: pagamento.id },
@@ -305,8 +357,12 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
         fatura.data_pagamento = new Date(dataPagamento);
       }
 
-      await repositorioFatura.save(fatura);
+      return repositorioFatura.save(fatura);
     });
+
+    if (statusRecebido === 'PAGO') {
+      await this.asaasRepasseService.iniciarRepasseDaFatura(faturaAtualizada.id);
+    }
 
     return true;
   }

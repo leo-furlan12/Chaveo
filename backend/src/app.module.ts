@@ -6,8 +6,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { ContratosController } from './controllers/contratosController';
 import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
+import { DadosRecebimentoProprietarioController } from './controllers/dados-recebimento-proprietario.controller';
 import { AsaasWebhookService } from './services/asaas-webhook.service';
 import { AsaasCobrancaService } from './services/asaas-cobranca.service';
+import { AsaasRepasseService } from './services/asaas-repasse.service';
+import { DadosRecebimentoCriptoService } from './services/dados-recebimento-cripto.service';
+import { DadosRecebimentoProprietarioService } from './services/dados-recebimento-proprietario.service';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -21,6 +25,7 @@ import { Prestador } from './database/entities/prestador.entity';
 import { Contrato } from './database/entities/contrato.entity';
 import { Fatura } from './database/entities/fatura.entity';
 import { AsaasWebhookEvento } from './database/entities/asaas-webhook-evento.entity';
+import { Repasse } from './database/entities/repasse.entity';
 
 
 //arquivo que indica a composição do site ao nest
@@ -46,7 +51,7 @@ import { AsaasWebhookEvento } from './database/entities/asaas-webhook-evento.ent
       }),
     }), 
     AuthModule,
-    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato, Fatura, AsaasWebhookEvento, Prestador])//forFeature registra repositorios dessas entidades
+    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato, Fatura, AsaasWebhookEvento, Repasse, Prestador])//forFeature registra repositorios dessas entidades
     //repositorio = objeto para realizar operacoes comco banco
   ],
  
@@ -57,7 +62,15 @@ import { AsaasWebhookEvento } from './database/entities/asaas-webhook-evento.ent
     CadastroController,
     ContratosController,
     AsaasWebhookController,
+    DadosRecebimentoProprietarioController,
   ],
-  providers: [AppService, AsaasWebhookService, AsaasCobrancaService],//registra serviços e outros
+  providers: [
+    AppService,
+    AsaasWebhookService,
+    AsaasCobrancaService,
+    AsaasRepasseService,
+    DadosRecebimentoCriptoService,
+    DadosRecebimentoProprietarioService,
+  ],//registra serviços e outros
 })
 export class AppModule {}

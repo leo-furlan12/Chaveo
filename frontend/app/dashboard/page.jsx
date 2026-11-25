@@ -216,6 +216,11 @@ export default function DashboardProprietario() {
               <span>Controle de Pagamentos</span>
             </button>
             <BotaoPerfil perfilAtual="PROPRIETARIO" className="nav-item" />
+
+            <Link href="/dashboard/dados-recebimento" className="nav-item">
+              <Wallet size={18} />
+              <span>Dados bancários</span>
+            </Link>
           </nav>
         </div>
 
