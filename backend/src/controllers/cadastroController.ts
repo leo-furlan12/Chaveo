@@ -1,14 +1,18 @@
 // src/controllers/cadastroController.ts
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, HttpException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { Usuario } from '../database/entities/usuario.entity';
 import { Perfil } from '../database/entities/perfil.entity';
 import { Contrato } from '../database/entities/contrato.entity';
+import { DadosRecebimentoProprietarioService } from '../services/dados-recebimento-proprietario.service';
 @Controller('cadastro')
 export class CadastroController {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly dadosRecebimentoService: DadosRecebimentoProprietarioService,
+  ) {}
 
 @Post()
 async cadastrar(@Body() body: any) {
@@ -24,6 +28,7 @@ async cadastrar(@Body() body: any) {
     profissao,
     perfil,
     convite_token,
+    dados_recebimento,
     cidade,
     estado,
     categoria_id,
@@ -32,6 +37,10 @@ async cadastrar(@Body() body: any) {
 
   if (!nome || !cpf || !email || !senha || !perfil) {
     throw new BadRequestException('Preencha todos os campos obrigatórios.');
+  }
+
+  if (dados_recebimento !== undefined && perfil !== 'PROPRIETARIO') {
+    throw new BadRequestException('Somente proprietários podem cadastrar dados de recebimento.');
   }
 
   const cpfLimpo = cpf.replace(/\D/g, '');
@@ -85,6 +94,10 @@ async cadastrar(@Body() body: any) {
         );
       }
 
+      if (usuarioSalvo && dados_recebimento !== undefined) {
+        throw new BadRequestException('Para configurar o recebimento de uma conta existente, entre no dashboard.');
+      }
+
       if (usuarioSalvo) {
         const relacaoExistente = await manager.query(
           `SELECT 1 FROM usuarios_perfis WHERE usuario_id = $1 AND perfil_id = $2 LIMIT 1`,
@@ -110,7 +123,9 @@ async cadastrar(@Body() body: any) {
           nacionalidade: nacionalidade || 'Brasileira',
           estado_civil: estado_civil || 'SOLTEIRO',
           profissao: profissao || null,
-          ativo: true,
+          ...(dados_recebimento === undefined
+            ? {}
+            : this.dadosRecebimentoService.prepararDados(dados_recebimento)),
         });
 
         usuarioSalvo = await manager.save(novoUsuario);
@@ -155,7 +170,7 @@ async cadastrar(@Body() body: any) {
       id: resultado.id,
     };
   } catch (error: any) {
-    if (error instanceof BadRequestException) {
+    if (error instanceof HttpException) {
       throw error;
     }
     throw new BadRequestException(error.message || 'Erro ao realizar cadastro.');

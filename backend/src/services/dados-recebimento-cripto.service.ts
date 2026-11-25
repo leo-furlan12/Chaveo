@@ -33,7 +33,7 @@ export class DadosRecebimentoCriptoService {
     if (valorCifrado === null) return null;
 
     const [versao, ivBase64, tagBase64, dadosBase64] = valorCifrado.split(':');
-    if (versao !== 'v1' || !ivBase64 || !tagBase64 || !dadosBase64) {
+    if (versao !== 'v1' || !ivBase64 || !tagBase64 || dadosBase64 === undefined) {
       throw new ServiceUnavailableException('Os dados de recebimento estão inválidos.');
     }
 

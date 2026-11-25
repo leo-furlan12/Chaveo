@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { ErroRequisicaoAsaas, criarTransferenciaAsaas } from '../lib/asaas';
+import { BadGatewayException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { DataSource, IsNull } from 'typeorm';
+import { ErroRequisicaoAsaas, consultarTransferenciaAsaas, criarTransferenciaAsaas } from '../lib/asaas';
 import { Fatura } from '../database/entities/fatura.entity';
 import { Repasse } from '../database/entities/repasse.entity';
 import { Usuario } from '../database/entities/usuario.entity';
@@ -23,13 +24,69 @@ export class AsaasRepasseService {
     private readonly cripto: DadosRecebimentoCriptoService,
   ) {}
 
+  async reagendarRepasse(faturaId: string, locadorId: string) {
+    await this.dataSource.transaction(async (manager) => {
+      const fatura = await manager.findOne(Fatura, {
+        where: { id: faturaId, locador_id: locadorId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!fatura) throw new NotFoundException('Fatura não encontrada.');
+
+      const repasse = await manager.findOne(Repasse, {
+        where: { fatura_id: fatura.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!fatura.pago || !fatura.asaas_payment_id ||
+        repasse?.status !== 'FALHA') {
+        throw new ConflictException('Este repasse não está disponível para nova tentativa.');
+      }
+
+      if (repasse.asaas_transfer_id) {
+        const transferencia = await consultarTransferenciaAsaas(repasse.asaas_transfer_id).catch(() => {
+          throw new BadGatewayException('Não foi possível confirmar a situação da transferência anterior no Asaas.');
+        });
+        if (transferencia.id !== repasse.asaas_transfer_id ||
+          !['FAILED', 'CANCELLED'].includes(transferencia.status?.toUpperCase() ?? '')) {
+          throw new ConflictException('O Asaas ainda não confirmou a falha ou o cancelamento da transferência anterior.');
+        }
+      }
+
+      const [evento] = await manager.query(
+        `SELECT "id"
+         FROM "asaas_webhook_eventos"
+         WHERE "asaas_payment_id" = $1
+           AND "status_processamento" = 'PROCESSADO'
+           AND "tipo" IN ('PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED')
+         ORDER BY "criado_em" DESC, "id" DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [fatura.asaas_payment_id],
+      );
+      if (!evento) {
+        throw new ConflictException('A confirmação do pagamento ainda não está disponível para reprocessamento.');
+      }
+
+      await manager.update(Repasse, repasse.id, {
+        status: 'AGUARDANDO',
+        motivo_falha: null,
+        asaas_transfer_id: null,
+        referencia_externa: `repasse-fatura-${fatura.id}-${randomUUID()}`,
+      });
+      await manager.query(
+        `UPDATE "asaas_webhook_eventos"
+         SET "status_processamento" = 'PENDENTE', "tentativas" = 0,
+             "proxima_tentativa_em" = CURRENT_TIMESTAMP, "ultimo_erro" = NULL,
+             "atualizado_em" = CURRENT_TIMESTAMP
+         WHERE "id" = $1`,
+        [evento.id],
+      );
+    });
+
+    return { mensagem: 'Nova tentativa de repasse agendada.' };
+  }
+
   // Cria no máximo um repasse por fatura e só o solicita após a confirmação do pagamento.
   async iniciarRepasseDaFatura(faturaId: string): Promise<void> {
-    const destino = await this.buscarDestinoDoProprietario(faturaId);
-    if (!destino) {
-      throw new Error(`Configure os dados de recebimento do proprietário da fatura ${faturaId}.`);
-    }
-
     const referenciaExterna = `repasse-fatura-${faturaId}`;
     const repasse = await this.dataSource.transaction(async (gerenciador) => {
       const repositorioFatura = gerenciador.getRepository(Fatura);
@@ -66,42 +123,73 @@ export class AsaasRepasseService {
 
     if (!repasse) return;
 
+    const destino = await this.buscarDestinoDoProprietario(faturaId).catch(async (erro: unknown) => {
+      await this.registrarEsperaPorDestino(repasse.id, 'Não foi possível consultar o destino de recebimento.');
+      throw erro;
+    });
+    if (!destino) {
+      const mensagem = `Configure os dados de recebimento do proprietário da fatura ${faturaId}.`;
+      await this.registrarEsperaPorDestino(repasse.id, mensagem);
+      throw new Error(mensagem);
+    }
+
+    const repositorioRepasse = this.dataSource.getRepository(Repasse);
+    const tentativaSemTransferencia = {
+      id: repasse.id,
+      referencia_externa: repasse.referencia_externa,
+      asaas_transfer_id: IsNull(),
+    };
+
     try {
       const transferencia = await criarTransferenciaAsaas({
         valor: Number(repasse.valor),
-        referenciaExterna,
+        referenciaExterna: repasse.referencia_externa,
         destino,
       });
 
-      repasse.asaas_transfer_id = transferencia.id;
-      repasse.status = this.normalizarStatusTransferencia(transferencia.status);
-      repasse.motivo_falha = transferencia.failReason ?? null;
-      await this.dataSource.getRepository(Repasse).save(repasse);
+      await repositorioRepasse.update(
+        tentativaSemTransferencia,
+        {
+          asaas_transfer_id: transferencia.id,
+          status: this.normalizarStatusTransferencia(transferencia.status),
+          motivo_falha: transferencia.failReason ?? null,
+        },
+      );
     } catch (erro) {
       const httpStatus = erro instanceof ErroRequisicaoAsaas ? erro.statusHttp : null;
       const mensagem = erro instanceof Error ? erro.message : 'Falha desconhecida no Asaas.';
 
-      // Respostas HTTP 4xx recusam a criação. Saldo insuficiente pode ser tentado novamente.
-      if (httpStatus && httpStatus < 500) {
+      // Recusas explícitas podem ser corrigidas. Timeout e conflito exigem conciliação.
+      if (httpStatus && httpStatus < 500 && httpStatus !== 408 && httpStatus !== 409) {
         const aguardaSaldo = /saldo|disponível|disponivel|insuficiente/i.test(mensagem);
-        repasse.status = aguardaSaldo ? 'AGUARDANDO_SALDO' : 'FALHA';
-        repasse.motivo_falha = mensagem;
-        await this.dataSource.getRepository(Repasse).save(repasse);
+        const resultado = await repositorioRepasse.update(tentativaSemTransferencia, {
+          status: aguardaSaldo ? 'AGUARDANDO_SALDO' : 'FALHA',
+          motivo_falha: mensagem,
+        });
+        if (!resultado.affected) return;
         if (!aguardaSaldo) {
           this.logger.error(`Repasse ${repasse.id} recusado pelo Asaas: ${mensagem}`);
           return;
         }
       } else {
         // Uma falha de rede/servidor pode ocorrer depois da criação remota; não repete às cegas.
-        repasse.status = 'VERIFICAR';
-        repasse.motivo_falha = mensagem;
-        await this.dataSource.getRepository(Repasse).save(repasse);
+        await repositorioRepasse.update(tentativaSemTransferencia, {
+          status: 'VERIFICAR',
+          motivo_falha: mensagem,
+        });
         this.logger.error(`Resultado incerto no repasse ${repasse.id}: ${mensagem}`);
         return;
       }
 
       throw erro;
     }
+  }
+
+  private async registrarEsperaPorDestino(repasseId: string, motivo: string) {
+    await this.dataSource.getRepository(Repasse).update(repasseId, {
+      status: 'AGUARDANDO_DESTINO',
+      motivo_falha: motivo,
+    });
   }
 
   // Atualiza o repasse pelos eventos de transferência, mesmo se a resposta POST não chegou ao backend.
@@ -121,14 +209,30 @@ export class AsaasRepasseService {
         })
       : null);
 
-    if (!encontrado) return false;
-    if (transferencia.id) encontrado.asaas_transfer_id = transferencia.id;
-    encontrado.status = this.normalizarStatusTransferencia(
+    if (!encontrado || (transferencia.id && encontrado.asaas_transfer_id &&
+      transferencia.id !== encontrado.asaas_transfer_id)) return false;
+    const status = this.normalizarStatusTransferencia(
       transferencia.status ?? tipoEvento.replace('TRANSFER_', ''),
     );
-    encontrado.motivo_falha = transferencia.failReason ?? null;
-    await repositorio.save(encontrado);
-    return true;
+    const atualizacao = repositorio.createQueryBuilder()
+      .update(Repasse)
+      .set({
+        asaas_transfer_id: transferencia.id ?? encontrado.asaas_transfer_id,
+        status,
+        motivo_falha: transferencia.failReason ?? null,
+      })
+      .where({ id: encontrado.id, referencia_externa: encontrado.referencia_externa })
+      .andWhere('(asaas_transfer_id IS NULL OR asaas_transfer_id = :transferId)', {
+        transferId: transferencia.id ?? encontrado.asaas_transfer_id,
+      })
+      .andWhere("status <> 'CONCLUIDO'");
+
+    if (['PROCESSANDO', 'PROCESSANDO_BANCO', 'BLOQUEADO'].includes(status)) {
+      atualizacao.andWhere("status NOT IN ('FALHA', 'CANCELADO')");
+    }
+
+    const resultado = await atualizacao.execute();
+    return Boolean(resultado.affected);
   }
 
   private async buscarDestinoDoProprietario(faturaId: string) {

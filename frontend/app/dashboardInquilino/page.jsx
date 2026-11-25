@@ -188,7 +188,8 @@ export default function DashboardInquilino() {
   const [usuario, setUsuario] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
-  const [detalheAberto, setDetalheAberto] = useState(null);
+  const [imovelExpandido, setImovelExpandido] = useState(null);
+  const [contratoExpandido, setContratoExpandido] = useState(null);
   const [faturasPorContrato, setFaturasPorContrato] = useState({});
   const [carregandoFaturas, setCarregandoFaturas] = useState({});
   const [errosFaturas, setErrosFaturas] = useState({});
@@ -300,10 +301,6 @@ export default function DashboardInquilino() {
     router.replace("/login");
   };
 
-  const alternarDetalhe = (chave) => {
-    setDetalheAberto((atual) => (atual === chave ? null : chave));
-  };
-
   // Busca o histórico financeiro do contrato e mantém a lista em memória para reabrir o painel sem nova chamada.
   const carregarFaturasDoContrato = useCallback(async (contratoId) => {
     const token = sessionStorage.getItem("token");
@@ -370,6 +367,8 @@ export default function DashboardInquilino() {
     }
 
     const faturaAtual = faturas.find((fatura) => !faturaEstaCancelada(fatura));
+    if (faturaAtual?.pago) return;
+
     if (faturaAtual?.asaas_payment_id) {
       setMensagensCobranca((atuais) => ({
         ...atuais,
@@ -619,7 +618,7 @@ export default function DashboardInquilino() {
               <div className="tenant-record-list">
                 {imoveisLocatario.map(({ imovel, contratos: contratosDoImovel }) => {
                   const chaveImovel = `imovel-${imovel?.id || contratosDoImovel[0].id}`;
-                  const imovelAberto = detalheAberto === chaveImovel;
+                  const imovelAberto = imovelExpandido === chaveImovel;
 
                   return (
                     <article className="tenant-record-card" key={chaveImovel}>
@@ -639,7 +638,7 @@ export default function DashboardInquilino() {
                         <button
                           type="button"
                           className="tenant-more-button tenant-record-toggle"
-                          onClick={() => alternarDetalhe(chaveImovel)}
+                          onClick={() => setImovelExpandido(imovelAberto ? null : chaveImovel)}
                           aria-expanded={imovelAberto}
                         >
                           {imovelAberto ? "Ocultar imóvel" : "Ver mais do imóvel"}
@@ -683,7 +682,7 @@ export default function DashboardInquilino() {
                         </h4>
                         {contratosDoImovel.map((contrato) => {
                           const chaveContrato = `contrato-${contrato.id}`;
-                          const contratoAberto = detalheAberto === chaveContrato;
+                          const contratoAberto = contratoExpandido === chaveContrato;
                           const podePagar = contrato.status === "CONCLUIDO";
                           const statusContrato = normalizarStatus(contrato.status);
                           const faturasContrato = faturasPorContrato[contrato.id];
@@ -710,7 +709,7 @@ export default function DashboardInquilino() {
                                   className="tenant-more-button tenant-record-toggle"
                                   onClick={() => {
                                     const vaiAbrir = !contratoAberto;
-                                    alternarDetalhe(chaveContrato);
+                                    setContratoExpandido(vaiAbrir ? chaveContrato : null);
                                     if (vaiAbrir && podePagar) carregarFaturasDoContrato(contrato.id);
                                   }}
                                   aria-expanded={contratoAberto}
@@ -750,14 +749,16 @@ export default function DashboardInquilino() {
                                           <h5>Pagamentos do aluguel</h5>
                                         </div>
                                         <div className="tenant-payment-actions">
-                                          <button
-                                            type="button"
-                                            className="tenant-payment-button tenant-payment-button-primary"
-                                            onClick={() => gerarOuExibirBoleto(contrato.id)}
-                                            disabled={Boolean(gerandoCobranca[contrato.id] || carregandoFaturas[contrato.id])}
-                                          >
-                                            {gerandoCobranca[contrato.id] ? "Gerando..." : "Gerar Boleto"}
-                                          </button>
+                                          {Array.isArray(faturasContrato) && !faturaAtual?.pago && (
+                                            <button
+                                              type="button"
+                                              className="tenant-payment-button tenant-payment-button-primary"
+                                              onClick={() => gerarOuExibirBoleto(contrato.id)}
+                                              disabled={Boolean(gerandoCobranca[contrato.id] || carregandoFaturas[contrato.id])}
+                                            >
+                                              {gerandoCobranca[contrato.id] ? "Gerando..." : "Gerar Boleto"}
+                                            </button>
+                                          )}
                                           <button
                                             type="button"
                                             className="tenant-payment-button"

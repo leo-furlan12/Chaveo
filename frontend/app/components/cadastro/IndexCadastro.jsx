@@ -10,6 +10,7 @@ import FormPrestador from './FormPrestador';
 import SelectPerfil from './SelectPerfil';
 
 export const TIPOS_PERFIL = ['INQUILINO', 'PROPRIETARIO', 'PRESTADOR'];
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/$/, "");
 
 export default function IndexCadastro() {
   const searchParams = useSearchParams();
@@ -27,6 +28,7 @@ export default function IndexCadastro() {
 */
   
   const [loading, setLoading] = useState(false);
+  const [recebimento, setRecebimento] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
  
   const [formData, setFormData] = useState({
@@ -39,7 +41,6 @@ export default function IndexCadastro() {
     nacionalidade: 'Brasileira',
     estado_civil: 'SOLTEIRO',
     profissao: '',
-    chave_pix: '',
     cidade: '',
     estado: '',
     categoria_id: '1',
@@ -51,27 +52,23 @@ export default function IndexCadastro() {
     setStep(2);
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async ({ dadosRecebimento, pularComplemento } = {}) => {
     setLoading(true);
     setErrorMessage('');
 
     try {
-      const response = await fetch('http://localhost:4000/api/cadastro', {
+      const response = await fetch(`${apiUrl}/cadastro`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        /*
         body: JSON.stringify({
           ...formData,
-          perfil,  
+          ...(pularComplemento ? { rg: "", estado_civil: "", profissao: "" } : {}),
+          perfil: conviteToken ? "INQUILINO" : perfil,
+          ...(conviteToken ? { convite_token: conviteToken } : {}),
+          ...(dadosRecebimento ? { dados_recebimento: dadosRecebimento } : {}),
         }),
-        */
-       body: JSON.stringify({
-        ...formData,
-        perfil: conviteToken ? "INQUILINO" : perfil,
-        ...(conviteToken ? { convite_token: conviteToken } : {}),
-      }),
       });
 
       const data = await response.json();
@@ -169,6 +166,8 @@ export default function IndexCadastro() {
                 <FormLocador
                   formData={formData}
                   setFormData={setFormData}
+                  recebimento={recebimento}
+                  setRecebimento={setRecebimento}
                   onBack={() => setStep(2)}
                   onFinish={handleFinish}
                 />

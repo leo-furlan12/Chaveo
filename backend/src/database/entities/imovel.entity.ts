@@ -47,4 +47,7 @@ export class Imovel {
 
   @Column({ type: 'varchar', length: 20 })
   status: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  excluido_em: Date | null;
 }

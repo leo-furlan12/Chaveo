@@ -56,6 +56,7 @@ async function requisitarAsaas<T>(
   caminho: string,
   metodo: 'GET' | 'POST',
   dados?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
   const chaveApi = process.env.ASAAS_API_KEY;
 
@@ -65,6 +66,7 @@ async function requisitarAsaas<T>(
 
   const resposta = await fetch(`${URL_BASE_ASAAS}${caminho}`, {
     method: metodo,
+    signal,
     headers: {
       access_token: chaveApi,
       'Content-Type': 'application/json',
@@ -90,6 +92,15 @@ async function requisitarAsaas<T>(
   }
 
   return corpo as T;
+}
+
+export function consultarTransferenciaAsaas(id: string) {
+  return requisitarAsaas<TransferenciaAsaasResposta>(
+    `/transfers/${encodeURIComponent(id)}`,
+    'GET',
+    undefined,
+    AbortSignal.timeout(5000),
+  );
 }
 
 // Envia um repasse do saldo disponível da conta Asaas para uma chave Pix ou conta bancária.

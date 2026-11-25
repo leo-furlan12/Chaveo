@@ -43,7 +43,14 @@ export class DadosRecebimentoProprietarioService {
 
   async salvar(usuarioId: string, entrada: DadosRecebimentoEntrada) {
     const usuario = await this.buscarProprietario(usuarioId);
+    const dados = this.prepararDados(entrada);
+    await this.usuarioRepository.update(usuario.id, dados);
+    return this.formatarResposta(Object.assign(usuario, dados));
+  }
+
+  prepararDados(entrada: DadosRecebimentoEntrada): Partial<Usuario> {
     const dados = this.validarEntrada(entrada);
+    const usuario: Partial<Usuario> = {};
 
     usuario.recebimento_tipo = dados.tipo;
     usuario.recebimento_pix_chave_cifrada = this.cripto.criptografar(
@@ -57,7 +64,7 @@ export class DadosRecebimentoProprietarioService {
       dados.tipo === 'CONTA_BANCARIA' ? dados.contaBancaria!.agencia : null,
     );
     usuario.recebimento_banco_agencia_digito_cifrado = this.cripto.criptografar(
-      dados.tipo === 'CONTA_BANCARIA' ? dados.contaBancaria!.digitoAgencia || '' : null,
+      dados.tipo === 'CONTA_BANCARIA' ? dados.contaBancaria!.digitoAgencia || null : null,
     );
     usuario.recebimento_banco_conta_cifrada = this.cripto.criptografar(
       dados.tipo === 'CONTA_BANCARIA' ? dados.contaBancaria!.conta : null,
@@ -78,7 +85,7 @@ export class DadosRecebimentoProprietarioService {
       dados.tipo === 'CONTA_BANCARIA' ? dados.contaBancaria!.titularDocumento : null,
     );
 
-    return this.formatarResposta(await this.usuarioRepository.save(usuario));
+    return usuario;
   }
 
   private async buscarProprietario(usuarioId: string): Promise<Usuario> {
@@ -106,7 +113,7 @@ export class DadosRecebimentoProprietarioService {
     if (entrada.tipo === 'PIX') {
       const pix = entrada.pix;
       const tiposValidos: TipoChavePix[] = ['CPF', 'CNPJ', 'EMAIL', 'PHONE', 'EVP'];
-      if (!pix || !tiposValidos.includes(pix.tipoChave) || !pix.chave?.trim()) {
+      if (!pix || !tiposValidos.includes(pix.tipoChave) || typeof pix.chave !== 'string' || !pix.chave.trim()) {
         throw new BadRequestException('Informe uma chave Pix e seu tipo.');
       }
       const chave = pix.chave.trim();
@@ -126,14 +133,19 @@ export class DadosRecebimentoProprietarioService {
 
     const conta = entrada.contaBancaria;
     if (
-      !conta || !/^\d{3}$/.test(conta.codigoBanco) || !conta.agencia?.trim() ||
-      !conta.conta?.trim() || !conta.digitoConta?.trim() || !conta.titularNome?.trim() ||
+      !conta || typeof conta.codigoBanco !== 'string' || !/^\d{3}$/.test(conta.codigoBanco.trim()) ||
+      ![conta.agencia, conta.conta, conta.digitoConta, conta.titularNome].every(
+        (valor) => typeof valor === 'string' && valor.trim(),
+      ) ||
+      (conta.digitoAgencia != null && typeof conta.digitoAgencia !== 'string') ||
       !['CONTA_CORRENTE', 'CONTA_POUPANCA'].includes(conta.tipoConta) ||
       !['PIX', 'TED'].includes(conta.operacao)
     ) {
       throw new BadRequestException('Preencha os dados bancários obrigatórios.');
     }
-    const documento = conta.titularDocumento?.replace(/\D/g, '');
+    const documento = typeof conta.titularDocumento === 'string'
+      ? conta.titularDocumento.replace(/\D/g, '')
+      : '';
     if (!documento || ![11, 14].includes(documento.length)) {
       throw new BadRequestException('O CPF/CNPJ do titular deve conter 11 ou 14 números.');
     }
@@ -144,6 +156,8 @@ export class DadosRecebimentoProprietarioService {
         codigoBanco: conta.codigoBanco.trim(),
         agencia: conta.agencia.trim(),
         conta: conta.conta.trim(),
+        digitoConta: conta.digitoConta.trim(),
+        digitoAgencia: conta.digitoAgencia?.trim(),
         titularNome: conta.titularNome.trim(),
         titularDocumento: documento,
       },

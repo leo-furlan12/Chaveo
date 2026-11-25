@@ -4,6 +4,7 @@ import TrocarPerfil, { BotaoPerfil } from "../components/TrocarPerfil";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import HistoricoPagamentos from "./HistoricoPagamentos";
 import ModalImovel from "./ModalImovel";
 import {
   Building2,
@@ -35,7 +36,7 @@ export default function DashboardProprietario() {
   const [avisoRegra, setAvisoRegra] = useState("");
   const [imovelSelecionado, setImovelSelecionado] = useState(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/$/, "");
 
   const carregarImoveis = async () => {
     setCarregando(true);
@@ -73,10 +74,24 @@ export default function DashboardProprietario() {
 
   // AÇÃO: Excluir imóvel direto
   const excluirImovel = async (id) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    setAvisoRegra("");
     try {
       const resposta = await fetch(`${apiUrl}/imoveis/${id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (resposta.status === 401) {
+        sessionStorage.removeItem("token");
+        router.replace("/login");
+        return;
+      }
 
       if (resposta.ok) {
         setImoveis((listaAtual) =>
@@ -85,7 +100,7 @@ export default function DashboardProprietario() {
       } else {
         const erroDados = await resposta.json().catch(() => ({}));
         setAvisoRegra(
-          erroDados.mensagem || "Não foi possível excluir o imóvel.",
+          erroDados.mensagem || erroDados.message || "Não foi possível excluir o imóvel.",
         );
       }
     } catch (erro) {
@@ -215,12 +230,12 @@ export default function DashboardProprietario() {
               <Wallet size={18} />
               <span>Controle de Pagamentos</span>
             </button>
-            <BotaoPerfil perfilAtual="PROPRIETARIO" className="nav-item" />
 
             <Link href="/dashboard/dados-recebimento" className="nav-item">
               <Wallet size={18} />
               <span>Dados bancários</span>
             </Link>
+            <BotaoPerfil perfilAtual="PROPRIETARIO" className="nav-item" />
           </nav>
         </div>
 
@@ -252,25 +267,28 @@ export default function DashboardProprietario() {
               {abaAtiva === "pagamentos" && "Controle de Pagamentos"}
             </h1>
             <p className="page-subtitle">
-              Acompanhe seus imóveis cadastrados e gerencie seu patrimônio em
-              tempo real.
+              {abaAtiva === "pagamentos"
+                ? "Consulte os pagamentos e repasses da sua carteira."
+                : "Acompanhe seus imóveis cadastrados e gerencie seu patrimônio."}
             </p>
           </div>
 
-          <div className="topbar-actions">
-            <button
-              onClick={carregarImoveis}
-              className="btn-refresh"
-              title="Sincronizar com o banco de dados"
-            >
-              <RefreshCw size={18} />
-            </button>
+          {abaAtiva !== "pagamentos" && (
+            <div className="topbar-actions">
+              <button
+                onClick={carregarImoveis}
+                className="btn-refresh"
+                title="Sincronizar com o banco de dados"
+              >
+                <RefreshCw size={18} />
+              </button>
 
-            <Link href="/imoveis/cadastro" className="btn-primary">
-              <Plus size={18} />
-              <span>Novo Imóvel</span>
-            </Link>
-          </div>
+              <Link href="/imoveis/cadastro" className="btn-primary">
+                <Plus size={18} />
+                <span>Novo Imóvel</span>
+              </Link>
+            </div>
+          )}
         </header>
 
         {/* CONTEÚDO DINÂMICO */}
@@ -339,6 +357,8 @@ export default function DashboardProprietario() {
               </div>
             </section>
           )}
+
+          {abaAtiva === "pagamentos" && <HistoricoPagamentos apiUrl={apiUrl} />}
 
           {/* LISTAGEM E CRUD DE IMÓVEIS */}
           {(abaAtiva === "visao-geral" || abaAtiva === "meus-imoveis") && (

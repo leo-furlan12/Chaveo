@@ -1,6 +1,15 @@
 'use client';
 
-export default function FormLocador({ formData, setFormData, onBack, onFinish }) {
+import CamposRecebimento, { DADOS_VAZIOS, montarDadosRecebimento } from "../CamposRecebimento";
+
+export default function FormLocador({
+  formData,
+  setFormData,
+  recebimento,
+  setRecebimento,
+  onBack,
+  onFinish,
+}) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     const formattedValue = name === 'rg' ? formatRG(value) : value;
@@ -12,17 +21,13 @@ export default function FormLocador({ formData, setFormData, onBack, onFinish })
     Boolean(formData.estado_civil?.trim()) &&
     Boolean(formData.profissao?.trim());
 
-  const handleSkip = () => {
-    setFormData((prev) => ({
-      ...prev,
-      rg: '',
-      estado_civil: '',
-      profissao: '',
-      chave_pix: '',
-    }));
-    
-    onFinish();
+  const handleSubmit = (evento) => {
+    evento.preventDefault();
+    if (isFormFilled) {
+      onFinish({ dadosRecebimento: recebimento && montarDadosRecebimento(recebimento) });
+    }
   };
+
   const formatRG = (value) => {
     if (!value) return '';
     
@@ -36,7 +41,7 @@ export default function FormLocador({ formData, setFormData, onBack, onFinish })
   };
 
   return (
-    <div className="space-y-4">
+    <form className="space-y-4" onSubmit={handleSubmit}>
       <div className="text-center mb-6">
         <span className="inline-block px-3 py-1 bg-[#00D9B5]/10 text-[#00D9B5] border border-[#00D9B5]/30 text-xs font-semibold rounded-full mb-2">
           Perfil Proprietário
@@ -86,22 +91,22 @@ export default function FormLocador({ formData, setFormData, onBack, onFinish })
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Chave PIX para Recebimento (chave_pix)</label>
-        <input
-          type="text"
-          name="chave_pix"
-          value={formData.chave_pix || ''}
-          onChange={handleChange}
-          placeholder="CPF, E-mail ou Celular"
-          className="w-full px-4 py-2.5 bg-[#0D121F] border border-slate-800 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-[#00D9B5] focus:ring-1 focus:ring-[#00D9B5] transition-all"
-        />
-      </div>
+      <fieldset className="space-y-3 rounded-xl border border-slate-800 p-4">
+        <legend className="px-2 text-sm font-semibold">Dados bancários</legend>
+        <label className="flex items-center gap-2 text-sm text-slate-200">
+          <input
+            type="checkbox"
+            checked={recebimento !== null}
+            onChange={(evento) => setRecebimento(evento.target.checked ? DADOS_VAZIOS : null)}
+          />
+          Configurar o recebimento agora
+        </label>
+        {recebimento && <CamposRecebimento dados={recebimento} setDados={setRecebimento} />}
+      </fieldset>
 
       <div className="pt-4 space-y-3">
         <button
-          type="button"
-          onClick={onFinish}
+          type="submit"
           disabled={!isFormFilled}
           className="w-full py-3 bg-[#00D9B5] text-[#0A0D14] font-bold rounded-lg hover:bg-[#00c2a2] transition-all shadow-lg shadow-[#00D9B5]/20 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:border disabled:border-slate-800/80"
         >
@@ -120,7 +125,7 @@ export default function FormLocador({ formData, setFormData, onBack, onFinish })
 
           <button
             type="button"
-            onClick={handleSkip}
+            onClick={() => onFinish({ pularComplemento: true })}
             className="text-slate-400 hover:text-[#00D9B5] transition-colors font-medium underline-offset-4 hover:underline"
           >
             Preencher depois
@@ -128,6 +133,6 @@ export default function FormLocador({ formData, setFormData, onBack, onFinish })
         </div>
       </div>
  
-    </div>
+    </form>
   );
 }

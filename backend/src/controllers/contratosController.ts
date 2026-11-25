@@ -35,6 +35,7 @@ import { Perfil } from '../database/entities/perfil.entity';
 import PDFDocument from 'pdfkit';
 import { gerarConteudoContrato } from '../services/contratoPdf.service';
 import { AsaasCobrancaService } from '../services/asaas-cobranca.service';
+import { AsaasRepasseService } from '../services/asaas-repasse.service';
 
 @Controller('contratos') //recebe solicitaçoes de cadastro de um contrato
 export class ContratosController {
@@ -49,7 +50,29 @@ export class ContratosController {
     private readonly usuarioRepository: Repository<Usuario>, //consultar usuarios no postgree
 
     private readonly asaasCobrancaService: AsaasCobrancaService,
+    private readonly asaasRepasseService: AsaasRepasseService,
   ) { }
+
+  @Get('historico-pagamentos')
+  @UseGuards(AuthGuard)
+  listarHistoricoPagamentos(@Req() request: Request) {
+    return this.asaasCobrancaService.listarHistoricoDoProprietario(
+      String((request as any).user.sub),
+    );
+  }
+
+  @Post('historico-pagamentos/:faturaId/tentar-repasse')
+  @UseGuards(AuthGuard)
+  tentarRepasse(@Param('faturaId') faturaId: string, @Req() request: Request) {
+    if (!/^[1-9]\d{0,18}$/.test(faturaId) || BigInt(faturaId) > 9223372036854775807n) {
+      throw new BadRequestException('Identificador de fatura inválido.');
+    }
+
+    return this.asaasRepasseService.reagendarRepasse(
+      faturaId,
+      String((request as any).user.sub),
+    );
+  }
 
   // Lista as parcelas do contrato para o histórico financeiro do inquilino.
   @Get(':id/faturas')
@@ -106,16 +129,26 @@ export class ContratosController {
     return contratos.map((contrato) => ({
       ...contrato,
       imovel: contrato.imovel
-    ? {
-        cep: contrato.imovel.cep,
-        logradouro: contrato.imovel.logradouro,
-        numero: contrato.imovel.numero,
-        complemento: contrato.imovel.complemento,
-        bairro: contrato.imovel.bairro,
-        cidade: contrato.imovel.cidade,
-        estado: contrato.imovel.estado,
-      }
-    : null,
+        ? {
+            id: contrato.imovel.id,
+            cep: contrato.imovel.cep,
+            logradouro: contrato.imovel.logradouro,
+            numero: contrato.imovel.numero,
+            complemento: contrato.imovel.complemento,
+            bairro: contrato.imovel.bairro,
+            cidade: contrato.imovel.cidade,
+            estado: contrato.imovel.estado,
+            tipo: contrato.imovel.tipo,
+            status: contrato.imovel.status,
+            proprietario: contrato.imovel.proprietario
+              ? {
+                  nome: contrato.imovel.proprietario.nome,
+                  telefone: contrato.imovel.proprietario.telefone,
+                  email: contrato.imovel.proprietario.email,
+                }
+              : null,
+          }
+        : null,
     }));
   }
 
@@ -132,7 +165,7 @@ export class ContratosController {
 
     // procura o imovel no banco
     const imovel = await this.imovelRepository.findOne({
-      where: { id: dados.imovel_id },
+      where: { id: dados.imovel_id, excluido_em: IsNull() },
     });
 
     // verifica se o imovel existe
@@ -329,7 +362,15 @@ if (!indicesPermitidos.includes(indice_reajuste)) {
     });
 
     // salva o contrato no banco
-    const contratoSalvo = await this.contratoRepository.save(contrato);
+    const contratoSalvo = await this.contratoRepository.manager.transaction(async (manager) => {
+      const imovelDisponivel = await manager.findOne(Imovel, {
+        where: { id: imovel.id, proprietario_id: String(usuarioId), excluido_em: IsNull() },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!imovelDisponivel) throw new NotFoundException('Imóvel não encontrado');
+
+      return manager.save(Contrato, contrato);
+    });
 
     return {
       mensagem: 'Contrato criado com sucesso',

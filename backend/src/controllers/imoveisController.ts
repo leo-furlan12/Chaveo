@@ -1,8 +1,9 @@
 import { Controller, Post, Get, Param, Patch, Delete, Body, Res, HttpStatus, Req } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Imovel } from '../database/entities/imovel.entity';
+import { Contrato } from '../database/entities/contrato.entity';
 import { UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -21,7 +22,7 @@ export class ImoveisController {
         const proprietarioId = String((req as any).user.sub);
 
       const imoveis = await this.imovelRepository.find({
-        where: { proprietario_id: proprietarioId },
+        where: { proprietario_id: proprietarioId, excluido_em: IsNull() },
         order: { id: 'DESC' },
       });
       return res.status(HttpStatus.OK).json(imoveis);
@@ -38,7 +39,7 @@ export class ImoveisController {
  // @UseGuards(AuthGuard)
   async buscarPorId(@Param('id') id: string, @Res() res: Response) {
     try {
-      const imovel = await this.imovelRepository.findOne({ where: { id } });
+      const imovel = await this.imovelRepository.findOne({ where: { id, excluido_em: IsNull() } });
       if (!imovel) {
         return res.status(HttpStatus.NOT_FOUND).json({
           mensagem: 'Imóvel não encontrado.',
@@ -59,7 +60,7 @@ export class ImoveisController {
 async criar(@Body() dados: any, @Req() req: Request, @Res() res: Response) {
   try {
     const usuarioId = String((req as any).user.sub);
-    const { id, proprietario_id, proprietario, ...dadosLimpos } = dados;
+    const { id, proprietario_id, proprietario, excluido_em, ...dadosLimpos } = dados;
 
     const novoImovel = this.imovelRepository.create({
       ...dadosLimpos,
@@ -115,32 +116,39 @@ async criar(@Body() dados: any, @Req() req: Request, @Res() res: Response) {
     @Res() res: Response,
   ) {
     try {
-      const imovelExistente = await this.imovelRepository.findOne({
-        where: { id },
-      });
-
-      if (!imovelExistente) {
-         return res.status(HttpStatus.NOT_FOUND).json({
-          mensagem: 'Imóvel não encontrado.',
+      const resultado = await this.imovelRepository.manager.transaction(async (manager) => {
+        const imovelExistente = await manager.findOne(Imovel, {
+          where: { id, excluido_em: IsNull() },
+          lock: { mode: 'pessimistic_write' },
         });
-      }
-      // REGRA DE NEGÓCIO: Proibido alterar dados se o imóvel estiver ALUGADO
-      if (imovelExistente.status?.toUpperCase() === 'ALUGADO') {
-        return res.status(HttpStatus.FORBIDDEN).json({
-          mensagem:
-            'Regra de negócio: Não é permitido alterar informações de um imóvel que está Alugado.',
-        });
-      }
 
-      const { id: _id, proprietario_id, proprietario, ...dadosLimpos } = dados;
+        if (!imovelExistente) {
+          return {
+            status: HttpStatus.NOT_FOUND,
+            resposta: { mensagem: 'Imóvel não encontrado.' },
+          };
+        }
+        // REGRA DE NEGÓCIO: Proibido alterar dados se o imóvel estiver ALUGADO
+        if (imovelExistente.status?.toUpperCase() === 'ALUGADO') {
+          return {
+            status: HttpStatus.FORBIDDEN,
+            resposta: {
+              mensagem: 'Regra de negócio: Não é permitido alterar informações de um imóvel que está Alugado.',
+            },
+          };
+        }
 
-      Object.assign(imovelExistente, dadosLimpos);
-      const imovelAtualizado = await this.imovelRepository.save(imovelExistente);
+        const { id: _id, proprietario_id, proprietario, excluido_em, ...dadosLimpos } = dados;
 
-      return res.status(HttpStatus.OK).json({
-        mensagem: 'Imóvel atualizado com sucesso!',
-        dados: imovelAtualizado,
+        Object.assign(imovelExistente, dadosLimpos);
+        const imovelAtualizado = await manager.save(Imovel, imovelExistente);
+
+        return {
+          status: HttpStatus.OK,
+          resposta: { mensagem: 'Imóvel atualizado com sucesso!', dados: imovelAtualizado },
+        };
       });
+      return res.status(resultado.status).json(resultado.resposta);
     } catch (erro) {
       console.error('Erro ao atualizar imóvel:', erro);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
@@ -149,19 +157,57 @@ async criar(@Body() dados: any, @Req() req: Request, @Res() res: Response) {
     }
   }
 
-  // 5. Rota DELETE para excluir o imóvel direto
   @Delete(':id')
-  async excluir(@Param('id') id: string, @Res() res: Response) {
+  @UseGuards(AuthGuard)
+  async excluir(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+    if (!/^[1-9]\d{0,18}$/.test(id) || BigInt(id) > 9223372036854775807n) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ mensagem: 'Imóvel inválido.' });
+    }
+
+    const proprietarioId = String((req as any).user.sub);
+    const filtroImovel = { id, proprietario_id: proprietarioId, excluido_em: IsNull() };
+
     try {
-      const resultado = await this.imovelRepository.delete(id);
-      if (resultado.affected === 0) {
-        return res.status(HttpStatus.NOT_FOUND).json({
-          mensagem: 'Imóvel não encontrado para exclusão.',
+      const resultado = await this.imovelRepository.manager.transaction(async (manager) => {
+        const imovel = await manager.findOne(Imovel, {
+          where: filtroImovel,
+          lock: { mode: 'pessimistic_write' },
         });
-      }
-      return res.status(HttpStatus.OK).json({
-        mensagem: 'Imóvel excluído com sucesso!',
+        if (!imovel) {
+          return {
+            status: HttpStatus.NOT_FOUND,
+            resposta: { mensagem: 'Imóvel não encontrado para exclusão.' },
+          };
+        }
+
+        const contratos = await manager.getRepository(Contrato)
+          .createQueryBuilder('contrato')
+          .select('contrato.status', 'status')
+          .addSelect("contrato.data_fim IS NULL OR contrato.data_fim >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date", 'dentro_da_vigencia')
+          .where('contrato.imovel_id = :id', { id })
+          .getRawMany<{ status: string; dentro_da_vigencia: boolean }>();
+
+        const emAndamento = [
+          'RASCUNHO', 'AGUARDANDO_INQUILINO', 'PENDENTE_DADOS',
+          'AGUARDANDO_REVISAO', 'AGUARDANDO_ASSINATURAS',
+        ];
+        if (contratos.some(({ status, dentro_da_vigencia }) =>
+          emAndamento.includes(status) || status === 'ATIVO' ||
+          (status === 'CONCLUIDO' && dentro_da_vigencia),
+        )) {
+          return {
+            status: HttpStatus.CONFLICT,
+            resposta: { mensagem: 'Não é possível excluir um imóvel com contrato ativo ou em andamento.' },
+          };
+        }
+
+        await manager.update(Imovel, filtroImovel, { excluido_em: new Date() });
+        return {
+          status: HttpStatus.OK,
+          resposta: { mensagem: 'Imóvel removido da carteira.' },
+        };
       });
+      return res.status(resultado.status).json(resultado.resposta);
     } catch (erro) {
       console.error('Erro ao excluir imóvel:', erro);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
