@@ -13,6 +13,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
   UploadedFile,
   Patch
 } from '@nestjs/common';
@@ -24,12 +25,13 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs';
 
 
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { Contrato } from '../database/entities/contrato.entity';
 import { Imovel } from '../database/entities/imovel.entity';
 import { AuthGuard } from '../auth/auth.guard';
 import { randomBytes } from 'crypto'; // gera codigo aleatorio para convite
 import { Usuario } from '../database/entities/usuario.entity';
+import { Perfil } from '../database/entities/perfil.entity';
 import PDFDocument from 'pdfkit';
 import { gerarConteudoContrato } from '../services/contratoPdf.service';
 import { AsaasCobrancaService } from '../services/asaas-cobranca.service';
@@ -382,7 +384,79 @@ if (!indicesPermitidos.includes(indice_reajuste)) {
       status: contrato.status,
     };
   }
+  @Get('meus-convites')
+  @UseGuards(AuthGuard)
+  async listarMeusConvites(@Req() request: Request) {
+    const usuarioId = String((request as any).user.sub);
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: usuarioId },
+      select: { cpf: true },
+    });
 
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const contratos = await this.contratoRepository.find({
+      where: [
+        {
+          cpf_locatario: usuario.cpf,
+          status: 'AGUARDANDO_INQUILINO',
+          locatario_id: IsNull(),
+          convite_token: Not(IsNull()),
+        },
+        { locatario_id: usuarioId },
+      ],
+      relations: { imovel: true },
+      order: { id: 'DESC' },
+    });
+
+    return contratos.map((contrato) => ({
+      contrato_id: contrato.id,
+      status: contrato.locatario_id === null ? 'PENDENTE' : 'ACEITO',
+      convite_token: contrato.locatario_id === null ? contrato.convite_token : null,
+      imovel: contrato.imovel
+        ? {
+            logradouro: contrato.imovel.logradouro,
+            numero: contrato.imovel.numero,
+            cidade: contrato.imovel.cidade,
+          }
+        : null,
+    }));
+  }
+
+  @Get('minhas-notificacoes')
+  @UseGuards(AuthGuard)
+  async listarMinhasNotificacoes(@Req() request: Request) {
+    const usuarioId = String((request as any).user.sub);
+    const [convites, boletos] = await Promise.all([
+      this.listarMeusConvites(request),
+      this.asaasCobrancaService.listarBoletosDoInquilino(usuarioId),
+    ]);
+
+    return { convites, boletos };
+  }
+
+//consultar o proximo passo
+@Get('convite/:token/destino')
+async consultarDestinoConvite(@Param('token') token: string) {
+  const contrato = await this.contratoRepository.findOne({
+    where: {
+      convite_token: token,
+      status: 'AGUARDANDO_INQUILINO',
+    },
+  });
+
+  if (!contrato?.cpf_locatario) {
+    throw new NotFoundException('Convite indisponível.');
+  }
+
+  const usuario = await this.usuarioRepository.findOne({
+    where: { cpf: contrato.cpf_locatario },
+  });
+
+  return { destino: usuario ? 'LOGIN' : 'CADASTRO' };
+}
 // consulta os dados de um convite
 @Get('convite/:token')
 @UseGuards(AuthGuard)
@@ -453,10 +527,18 @@ async consultarConvite(
     // pega o usuario logado pela url
     const usuarioId = String((request as any).user.sub);
 
+    return this.contratoRepository.manager.transaction(async (manager) => {
+      const contrato = await manager.findOne(Contrato, {
+        where: { convite_token: token },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+    /*
     // procura o contrato pelo codigo do convite
     const contrato = await this.contratoRepository.findOne({
       where: { convite_token: token },
     });
+    */
 
     // verifica se o convite existe
     if (!contrato) {
@@ -481,9 +563,12 @@ async consultarConvite(
     }
 
     // procura o usuario que esta aceitando o convite
+    /*
     const usuario = await this.usuarioRepository.findOne({
       where: { id: usuarioId },
     });
+    */
+    const usuario = await manager.findOne(Usuario, { where: { id: usuarioId } });
 
     // verifica se o usuario existe
     if (!usuario) {
@@ -503,26 +588,44 @@ async consultarConvite(
         'Este convite não foi destinado a você',
       );
     }
-
+    /*
     // associa o usuario logado ao contrato
     contrato.locatario_id = usuarioId;
+    */
 
-   // aguarda os dados adicionais do contrato
-contrato.status = 'PENDENTE_DADOS';
+      const perfilInquilino = await manager.findOne(Perfil, {
+        where: { nome: 'INQUILINO' },
+      });
 
-    // invalida o convite depois do uso
-    contrato.convite_token = null;
+      if (!perfilInquilino) {
+        throw new InternalServerErrorException(
+          'O perfil INQUILINO não está configurado.',
+        );
+      }
 
-    // salva as alteracoes
-    await this.contratoRepository.save(contrato);
-    return {
-      mensagem: 'Convite aceito com sucesso',
-      contrato_id: contrato.id,
-      status: contrato.status,
-    };
+      const vinculosInseridos = await manager.query(
+        `INSERT INTO usuarios_perfis (usuario_id, perfil_id)
+        VALUES ($1, $2)
+        ON CONFLICT (usuario_id, perfil_id) DO NOTHING
+        RETURNING usuario_id`,
+        [usuarioId, perfilInquilino.id],
+      );
+
+      contrato.locatario_id = usuarioId;
+      contrato.status = 'PENDENTE_DADOS';
+      contrato.convite_token = null;
+
+      await manager.save(Contrato, contrato);
+
+      return {
+        mensagem: 'Convite aceito com sucesso',
+        contrato_id: contrato.id,
+        status: contrato.status,
+        perfil_adicionado: vinculosInseridos.length > 0,
+      };
+    });
   }
 
-  
   // inquilino cadastra os dados do fiador
   @Post(':id/fiador')
   @UseGuards(AuthGuard)

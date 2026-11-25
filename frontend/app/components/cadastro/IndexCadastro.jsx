@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import FormBasic from './FormBasic';
 import FormLocador from './FormLocador';
@@ -11,9 +12,19 @@ import SelectPerfil from './SelectPerfil';
 export const TIPOS_PERFIL = ['INQUILINO', 'PROPRIETARIO', 'PRESTADOR'];
 
 export default function IndexCadastro() {
-  const [step, setStep] = useState(1);
-  const [perfil, setPerfil] = useState(null);
+  const searchParams = useSearchParams();
+  const conviteToken = searchParams.get("convite");
 
+  const caminhoConvite = conviteToken
+    ? `/ConviteContrato?token=${encodeURIComponent(conviteToken)}`
+    : null;
+
+  const [step, setStep] = useState(conviteToken ? 2 : 1);
+  const [perfil, setPerfil] = useState(conviteToken ? "INQUILINO" : null);
+  
+  /*const [step, setStep] = useState(1);
+  const [perfil, setPerfil] = useState(null);
+*/
   
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -50,10 +61,17 @@ export default function IndexCadastro() {
         headers: {
           'Content-Type': 'application/json',
         },
+        /*
         body: JSON.stringify({
           ...formData,
           perfil,  
         }),
+        */
+       body: JSON.stringify({
+        ...formData,
+        perfil: conviteToken ? "INQUILINO" : perfil,
+        ...(conviteToken ? { convite_token: conviteToken } : {}),
+      }),
       });
 
       const data = await response.json();
@@ -63,8 +81,10 @@ export default function IndexCadastro() {
       }
 
       alert('Conta criada com sucesso!');
-      window.location.href = '/login';
-
+      //window.location.href = '/login';
+      window.location.href = caminhoConvite
+        ? `/login?redirect=${encodeURIComponent(caminhoConvite)}`
+        : "/login";
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -123,7 +143,15 @@ export default function IndexCadastro() {
                 <FormBasic
                   formData={formData}
                   setFormData={setFormData}
-                  onBack={() => setStep(1)}
+                  //onBack={() => setStep(1)}
+                  onBack={() => {
+                    if (caminhoConvite) {
+                      window.location.href = caminhoConvite;
+                      return;
+                    }
+
+                    setStep(1);
+                  }}
                   onNext={() => setStep(3)}
                 />
               )}

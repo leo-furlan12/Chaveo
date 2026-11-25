@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { Contrato } from '../database/entities/contrato.entity';
 import { Fatura } from '../database/entities/fatura.entity';
 import { Usuario } from '../database/entities/usuario.entity';
@@ -28,6 +28,28 @@ export class AsaasCobrancaService {
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
   ) {}
+
+  async listarBoletosDoInquilino(usuarioId: string) {
+    const faturas = await this.faturaRepository.find({
+      where: { locatario_id: usuarioId, asaas_payment_id: Not(IsNull()) },
+      relations: { imovel: true },
+      order: { data_vencimento: 'DESC', id: 'DESC' },
+    });
+
+    return faturas.map((fatura) => ({
+      id: fatura.id,
+      status: fatura.status,
+      pago: fatura.pago,
+      valor: fatura.valor,
+      data_vencimento: fatura.data_vencimento,
+      data_pagamento: fatura.data_pagamento,
+      registrado_em: fatura.criado_em,
+      imovel: fatura.imovel ? {
+        logradouro: fatura.imovel.logradouro,
+        numero: fatura.imovel.numero,
+      } : null,
+    }));
+  }
 
   // Lista somente as faturas do contrato pertencente ao inquilino autenticado.
   async listarFaturasDoContrato(contratoId: string, usuarioId: string) {

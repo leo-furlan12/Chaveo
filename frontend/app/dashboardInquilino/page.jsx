@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Building2,
   CalendarDays,
@@ -13,6 +14,7 @@ import {
   FileText,
   KeyRound,
   LogOut,
+  Bell,
   MapPin,
   Printer,
   RefreshCw,
@@ -512,6 +514,10 @@ export default function DashboardInquilino() {
               <FileText size={18} />
               Meu contrato
             </a>
+            <Link className="tenant-nav-item" href="/dashboardInquilino/minhas-notificacoes">
+              <Bell size={18} />
+              Minhas notificações
+            </Link>
           </nav>
         </div>
 

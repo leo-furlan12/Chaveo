@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 import { Usuario } from '../database/entities/usuario.entity';
 import { Perfil } from '../database/entities/perfil.entity';
-
+import { Contrato } from '../database/entities/contrato.entity';
 @Controller('cadastro')
 export class CadastroController {
   constructor(private readonly dataSource: DataSource) {}
@@ -24,6 +24,7 @@ async cadastrar(@Body() body: any) {
     profissao,
     chave_pix,
     perfil,
+    convite_token,
     cidade,
     estado,
     categoria_id,
@@ -44,6 +45,27 @@ async cadastrar(@Body() body: any) {
   try {
     const resultado = await this.dataSource.transaction(async (manager) => {
  
+        if (convite_token !== undefined) {
+          if (
+            typeof convite_token !== 'string' ||
+            !convite_token ||
+            perfil !== 'INQUILINO'
+          ) {
+            throw new BadRequestException('Convite ou perfil inválido.');
+          }
+
+          const contrato = await manager.findOne(Contrato, {
+            where: {
+              convite_token,
+              status: 'AGUARDANDO_INQUILINO',
+            },
+          });
+
+          if (!contrato || contrato.cpf_locatario !== cpfLimpo) {
+            throw new BadRequestException('Convite indisponível para este CPF.');
+          }
+        }
+              
       const perfilEncontrado = await manager.findOne(Perfil, {
         where: { nome: perfil },
       });
@@ -56,6 +78,13 @@ async cadastrar(@Body() body: any) {
       let usuarioSalvo = await manager.findOne(Usuario, {
         where: [{ email }, { cpf: cpfLimpo }],
       });
+
+ 
+      if (convite_token !== undefined && usuarioSalvo) {
+        throw new BadRequestException(
+          'Já existe uma conta com esse CPF ou e-mail. Entre com a conta do CPF convidado.',
+        );
+      }
 
       if (usuarioSalvo) {
         const relacaoExistente = await manager.query(
