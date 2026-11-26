@@ -5,6 +5,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { ContratosController } from './controllers/contratosController';
+import { AsaasWebhookController } from './controllers/asaas-webhook.controller';
+import { AsaasWebhookService } from './services/asaas-webhook.service';
+import { AsaasCobrancaService } from './services/asaas-cobranca.service';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +19,8 @@ import { Usuario } from './database/entities/usuario.entity';
 import { Perfil } from './database/entities/perfil.entity';
 import { Prestador } from './database/entities/prestador.entity';
 import { Contrato } from './database/entities/contrato.entity';
+import { Fatura } from './database/entities/fatura.entity';
+import { AsaasWebhookEvento } from './database/entities/asaas-webhook-evento.entity';
 
 
 //arquivo que indica a composição do site ao nest
@@ -41,7 +46,7 @@ import { Contrato } from './database/entities/contrato.entity';
       }),
     }), 
     AuthModule,
-    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato,Prestador])//forFeature registra repositorios dessas entidades 
+    TypeOrmModule.forFeature([Imovel, Usuario, Perfil, Contrato, Fatura, AsaasWebhookEvento, Prestador])//forFeature registra repositorios dessas entidades
     //repositorio = objeto para realizar operacoes comco banco
   ],
  
@@ -51,7 +56,8 @@ import { Contrato } from './database/entities/contrato.entity';
     ImoveisController,
     CadastroController,
     ContratosController,
+    AsaasWebhookController,
   ],
-  providers: [AppService],//registra serviços e outros
+  providers: [AppService, AsaasWebhookService, AsaasCobrancaService],//registra serviços e outros
 })
 export class AppModule {}

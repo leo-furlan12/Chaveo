@@ -566,6 +566,185 @@
   font-size: 0.875rem;
 }
 
+.tenant-payment-panel {
+  margin: 1.25rem 0 0 4rem;
+  padding: 1rem;
+  border: 1px solid rgb(0 217 181 / 0.2);
+  border-radius: 0.75rem;
+  background: #171c25;
+}
+
+.tenant-payment-heading,
+.tenant-invoice-summary,
+.tenant-history-invoice-data {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tenant-payment-heading h5,
+.tenant-invoice-history h6 {
+  margin-top: 0.35rem;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tenant-payment-actions,
+.tenant-invoice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.tenant-payment-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  background: #1f2937;
+  color: #e2e8f0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.tenant-payment-button:hover:not(:disabled) {
+  border-color: rgb(0 217 181 / 0.55);
+  color: #00d9b5;
+}
+
+.tenant-payment-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.tenant-payment-button-primary {
+  border-color: #00d9b5;
+  background: #00d9b5;
+  color: #101820;
+  font-weight: 700;
+}
+
+.tenant-payment-button-primary:hover:not(:disabled) {
+  background: #4ce7ce;
+  color: #101820;
+}
+
+.tenant-payment-message,
+.tenant-payment-error {
+  margin-top: 0.75rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.tenant-payment-error {
+  color: #fda4af;
+}
+
+.tenant-current-invoice,
+.tenant-history-invoice {
+  margin-top: 0.9rem;
+  padding: 0.9rem;
+  border: 1px solid #263244;
+  border-radius: 0.6rem;
+  background: #14171f;
+}
+
+.tenant-invoice-summary > div,
+.tenant-history-invoice-data > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tenant-invoice-summary > div > span,
+.tenant-history-invoice-data > div > span {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.tenant-invoice-summary strong,
+.tenant-history-invoice-data strong {
+  color: white;
+  font-size: 0.9rem;
+}
+
+.tenant-invoice-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.invoice-status-paid {
+  border-color: rgb(16 185 129 / 0.35);
+  background: rgb(16 185 129 / 0.12);
+  color: #6ee7b7;
+}
+
+.invoice-status-overdue {
+  border-color: rgb(244 63 94 / 0.35);
+  background: rgb(244 63 94 / 0.12);
+  color: #fda4af;
+}
+
+.invoice-status-pending {
+  border-color: rgb(245 158 11 / 0.35);
+  background: rgb(245 158 11 / 0.12);
+  color: #fcd34d;
+}
+
+.invoice-status-cancelled {
+  border-color: #475569;
+  background: rgb(71 85 105 / 0.15);
+  color: #cbd5e1;
+}
+
+.tenant-current-invoice .tenant-invoice-actions,
+.tenant-history-invoice .tenant-invoice-actions {
+  margin-top: 0.85rem;
+}
+
+.tenant-pix-qr {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: white;
+}
+
+.tenant-pix-qr img {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+}
+
+.tenant-invoice-history {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #263244;
+}
+
+.tenant-invoice-history h6 {
+  margin: 0 0 0.75rem;
+}
+
 .tenant-empty {
   margin: 2rem;
   padding: 4rem;
@@ -654,5 +833,31 @@
   .tenant-property-details,
   .tenant-record-contracts {
     margin-left: 0;
+  }
+
+  .tenant-payment-panel {
+    margin-left: 0;
+    padding: 0.85rem;
+  }
+
+  .tenant-payment-heading,
+  .tenant-invoice-summary,
+  .tenant-history-invoice-data {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tenant-payment-actions,
+  .tenant-invoice-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-payment-button {
+    width: 100%;
+  }
+
+  .tenant-invoice-status {
+    align-self: flex-start;
   }
 }

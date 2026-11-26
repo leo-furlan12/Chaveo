@@ -1,22 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Building2,
   CalendarDays,
+  Copy,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
   FileText,
   KeyRound,
   LogOut,
   MapPin,
+  Printer,
   RefreshCw,
+  QrCode,
   Wallet,
 } from "lucide-react";
 import "./style.css";
 
-const apiBaseUrl = "http://localhost:4000/api";
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 function formatarMoeda(valor) {
   if (valor === null || valor === undefined || valor === "") {
@@ -58,6 +64,119 @@ function normalizarStatus(status) {
   };
 }
 
+// Apresenta o estado financeiro da fatura em português e seleciona a cor do selo.
+function normalizarStatusFatura(status) {
+  const statusNormalizado = status?.toUpperCase();
+
+  if (["PAGO", "CONFIRMADO", "RECEBIDO", "CONFIRMED", "RECEIVED"].includes(statusNormalizado)) {
+    return { texto: "Pago", classe: "invoice-status-paid" };
+  }
+
+  if (["VENCIDO", "OVERDUE"].includes(statusNormalizado)) {
+    return { texto: "Atrasado", classe: "invoice-status-overdue" };
+  }
+
+  if (["CANCELADO", "CANCELLED", "CANCELED", "DELETED"].includes(statusNormalizado)) {
+    return { texto: "Cancelado", classe: "invoice-status-cancelled" };
+  }
+
+  return { texto: "Pendente", classe: "invoice-status-pending" };
+}
+
+// Identifica cancelamentos tanto no status local quanto nos nomes usados pelo Asaas.
+function faturaEstaCancelada(fatura) {
+  return ["CANCELADO", "CANCELLED", "CANCELED", "DELETED"].includes(
+    fatura?.status?.toUpperCase(),
+  );
+}
+
+// Só apresenta ações de pagamento para faturas que ainda não foram pagas nem canceladas.
+function faturaEstaEmAberto(fatura) {
+  return Boolean(fatura && !fatura.pago && !faturaEstaCancelada(fatura));
+}
+
+// Aceita tanto o Base64 puro retornado pelo Asaas quanto uma data URL completa.
+function obterFonteImagemPix(imagemBase64) {
+  if (imagemBase64?.startsWith("data:image/")) return imagemBase64;
+  return `data:image/png;base64,${imagemBase64}`;
+}
+
+// Abre o recibo oficial do Asaas ou monta uma versão imprimível identificada pelo Chaveo.
+function imprimirComprovantePagamento(fatura, contrato, usuario) {
+  if (!fatura?.pago) return;
+
+  if (fatura.comprovante_url) {
+    window.open(fatura.comprovante_url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  const escaparHtml = (valor) =>
+    String(valor ?? "").replace(/[&<>\"']/g, (caractere) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    })[caractere]);
+  const janelaImpressao = window.open("", "_blank", "width=800,height=700");
+
+  if (!janelaImpressao) {
+    window.alert("Permita a abertura de janelas para imprimir o comprovante.");
+    return;
+  }
+
+  const enderecoImovel = [
+    contrato?.imovel?.logradouro,
+    contrato?.imovel?.numero,
+    contrato?.imovel?.bairro,
+    contrato?.imovel?.cidade,
+    contrato?.imovel?.estado,
+  ].filter(Boolean).join(", ");
+  const conteudo = `
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>Comprovante de pagamento - Fatura ${escaparHtml(fatura.id)}</title>
+        <style>
+          body { font: 16px Arial, sans-serif; color: #172033; margin: 48px auto; max-width: 720px; padding: 0 24px; }
+          h1 { font-size: 24px; margin-bottom: 8px; }
+          .origem { color: #586174; margin-bottom: 32px; }
+          dl { border-top: 1px solid #d8deea; }
+          .linha { display: flex; justify-content: space-between; gap: 24px; border-bottom: 1px solid #d8deea; padding: 14px 0; }
+          dt { color: #586174; } dd { margin: 0; text-align: right; font-weight: 600; }
+          .confirmacao { margin-top: 28px; padding: 16px; background: #eef8f1; border-radius: 8px; }
+          @media print { body { margin: 16mm auto; } }
+        </style>
+      </head>
+      <body>
+        <h1>Comprovante de pagamento do aluguel</h1>
+        <p class="origem">Documento emitido pelo Chaveo com base na confirmação registrada pelo Asaas.</p>
+        <dl>
+          <div class="linha"><dt>Inquilino</dt><dd>${escaparHtml(usuario?.nome || "Não informado")}</dd></div>
+          <div class="linha"><dt>Contrato</dt><dd>#${escaparHtml(contrato?.id)}</dd></div>
+          <div class="linha"><dt>Imóvel</dt><dd>${escaparHtml(enderecoImovel || "Não informado")}</dd></div>
+          <div class="linha"><dt>Fatura</dt><dd>#${escaparHtml(fatura.id)}</dd></div>
+          <div class="linha"><dt>Valor pago</dt><dd>${escaparHtml(formatarMoeda(fatura.valor))}</dd></div>
+          <div class="linha"><dt>Vencimento</dt><dd>${escaparHtml(formatarData(fatura.data_vencimento))}</dd></div>
+          <div class="linha"><dt>Pagamento confirmado em</dt><dd>${escaparHtml(formatarData(fatura.data_pagamento))}</dd></div>
+          <div class="linha"><dt>Identificador Asaas</dt><dd>${escaparHtml(fatura.asaas_payment_id)}</dd></div>
+        </dl>
+        <p class="confirmacao">Status: pagamento confirmado.</p>
+      </body>
+    </html>
+  `;
+
+  janelaImpressao.opener = null;
+  janelaImpressao.document.write(conteudo);
+  janelaImpressao.document.close();
+  janelaImpressao.setTimeout(() => {
+    janelaImpressao.focus();
+    janelaImpressao.print();
+  }, 250);
+}
+
+// Renderiza o painel interativo do inquilino com dados financeiros carregados sob demanda.
 export default function DashboardInquilino() {
   const router = useRouter();
   const [contratos, setContratos] = useState([]);
@@ -65,6 +184,17 @@ export default function DashboardInquilino() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
   const [detalheAberto, setDetalheAberto] = useState(null);
+  const [faturasPorContrato, setFaturasPorContrato] = useState({});
+  const [carregandoFaturas, setCarregandoFaturas] = useState({});
+  const [errosFaturas, setErrosFaturas] = useState({});
+  const [gerandoCobranca, setGerandoCobranca] = useState({});
+  const [mensagensCobranca, setMensagensCobranca] = useState({});
+  const [historicoAberto, setHistoricoAberto] = useState({});
+  const [qrAbertoPorFatura, setQrAbertoPorFatura] = useState({});
+  const [imagensPixPorFatura, setImagensPixPorFatura] = useState({});
+  const [carregandoPix, setCarregandoPix] = useState({});
+  const [errosPix, setErrosPix] = useState({});
+  const [pixCopiadoPorFatura, setPixCopiadoPorFatura] = useState({});
 
   const contratoAtual = contratos[0];
   const imoveisLocatario = useMemo(() => {
@@ -198,6 +328,193 @@ export default function DashboardInquilino() {
     }
 
     router.push(`/CompletarContrato?id=${contratoAtual.id}`);
+  };
+
+  // Busca o histórico financeiro do contrato e mantém a lista em memória para reabrir o painel sem nova chamada.
+  const carregarFaturasDoContrato = useCallback(async (contratoId) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.replace("/login");
+      return null;
+    }
+
+    setCarregandoFaturas((atuais) => ({ ...atuais, [contratoId]: true }));
+    setErrosFaturas((atuais) => ({ ...atuais, [contratoId]: "" }));
+
+    try {
+      const resposta = await fetch(`${apiBaseUrl}/contratos/${contratoId}/faturas`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+
+      if (resposta.status === 401) {
+        sessionStorage.removeItem("token");
+        router.replace("/login");
+        return null;
+      }
+
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) {
+        throw new Error(dados.message || "Não foi possível carregar as faturas.");
+      }
+
+      const faturas = Array.isArray(dados) ? dados : [];
+      setFaturasPorContrato((atuais) => ({ ...atuais, [contratoId]: faturas }));
+      return faturas;
+    } catch (erroCarregamento) {
+      setErrosFaturas((atuais) => ({
+        ...atuais,
+        [contratoId]: erroCarregamento.message || "Não foi possível carregar as faturas.",
+      }));
+      return null;
+    } finally {
+      setCarregandoFaturas((atuais) => ({ ...atuais, [contratoId]: false }));
+    }
+  }, [router]);
+
+  // Atualiza as cobranças consultadas quando o usuário volta para a aba do dashboard.
+  useEffect(() => {
+    const atualizarFaturasAoRetomar = () => {
+      if (document.visibilityState !== "visible") return;
+      Object.keys(faturasPorContrato).forEach((contratoId) => {
+        void carregarFaturasDoContrato(contratoId);
+      });
+    };
+
+    window.addEventListener("focus", atualizarFaturasAoRetomar);
+    return () => window.removeEventListener("focus", atualizarFaturasAoRetomar);
+  }, [faturasPorContrato, carregarFaturasDoContrato]);
+
+  // Gera a assinatura somente quando ainda não há fatura e depois atualiza o painel com a resposta do servidor.
+  const gerarOuExibirBoleto = async (contratoId) => {
+    setMensagensCobranca((atuais) => ({ ...atuais, [contratoId]: "" }));
+    let faturas = faturasPorContrato[contratoId];
+
+    if (!Array.isArray(faturas)) {
+      faturas = await carregarFaturasDoContrato(contratoId);
+      if (faturas === null) return;
+    }
+
+    const faturaAtual = faturas.find((fatura) => !faturaEstaCancelada(fatura));
+    if (faturaAtual?.asaas_payment_id) {
+      setMensagensCobranca((atuais) => ({
+        ...atuais,
+        [contratoId]: "A cobrança atual está exibida abaixo.",
+      }));
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    setGerandoCobranca((atuais) => ({ ...atuais, [contratoId]: true }));
+    try {
+      const resposta = await fetch(`${apiBaseUrl}/contratos/${contratoId}/cobranca`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (resposta.status === 401) {
+        sessionStorage.removeItem("token");
+        router.replace("/login");
+        return;
+      }
+
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) {
+        throw new Error(dados.message || "Não foi possível gerar a cobrança.");
+      }
+
+      const faturasAtualizadas = await carregarFaturasDoContrato(contratoId);
+      if (faturasAtualizadas === null && dados.fatura) {
+        setFaturasPorContrato((atuais) => ({
+          ...atuais,
+          [contratoId]: [dados.fatura],
+        }));
+      }
+      setMensagensCobranca((atuais) => ({
+        ...atuais,
+        [contratoId]: dados.mensagem || "Cobrança consultada com sucesso.",
+      }));
+    } catch (erroGeracao) {
+      setMensagensCobranca((atuais) => ({
+        ...atuais,
+        [contratoId]: erroGeracao.message || "Não foi possível gerar a cobrança.",
+      }));
+    } finally {
+      setGerandoCobranca((atuais) => ({ ...atuais, [contratoId]: false }));
+    }
+  };
+
+  // Copia o Pix copia e cola para a área de transferência do dispositivo do inquilino.
+  const copiarCodigoPix = async (faturaId, codigoPix) => {
+    try {
+      await navigator.clipboard.writeText(codigoPix);
+      setPixCopiadoPorFatura((atuais) => ({ ...atuais, [faturaId]: true }));
+      window.setTimeout(() => {
+        setPixCopiadoPorFatura((atuais) => ({ ...atuais, [faturaId]: false }));
+      }, 2000);
+    } catch {
+      setErrosPix((atuais) => ({
+        ...atuais,
+        [faturaId]: "Não foi possível copiar o Pix neste navegador.",
+      }));
+    }
+  };
+
+  // Solicita a imagem QR ao Asaas apenas quando o inquilino pede para exibi-la; a imagem não fica salva no banco.
+  const alternarQrCodePix = async (contratoId, fatura) => {
+    if (qrAbertoPorFatura[fatura.id]) {
+      setQrAbertoPorFatura((atuais) => ({ ...atuais, [fatura.id]: false }));
+      return;
+    }
+
+    if (imagensPixPorFatura[fatura.id]) {
+      setQrAbertoPorFatura((atuais) => ({ ...atuais, [fatura.id]: true }));
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    setCarregandoPix((atuais) => ({ ...atuais, [fatura.id]: true }));
+    setErrosPix((atuais) => ({ ...atuais, [fatura.id]: "" }));
+    try {
+      const resposta = await fetch(
+        `${apiBaseUrl}/contratos/${contratoId}/faturas/${fatura.id}/pix`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+
+      if (resposta.status === 401) {
+        sessionStorage.removeItem("token");
+        router.replace("/login");
+        return;
+      }
+
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) {
+        throw new Error(dados.message || "Não foi possível carregar o QR Code Pix.");
+      }
+
+      setImagensPixPorFatura((atuais) => ({
+        ...atuais,
+        [fatura.id]: dados.imagemBase64,
+      }));
+      setQrAbertoPorFatura((atuais) => ({ ...atuais, [fatura.id]: true }));
+    } catch (erroPix) {
+      setErrosPix((atuais) => ({
+        ...atuais,
+        [fatura.id]: erroPix.message || "Não foi possível carregar o QR Code Pix.",
+      }));
+    } finally {
+      setCarregandoPix((atuais) => ({ ...atuais, [fatura.id]: false }));
+    }
   };
 
   return (
@@ -410,6 +727,262 @@ export default function DashboardInquilino() {
                               <strong>
                                 {imovel?.proprietario?.nome || "Não informado"}
                               </strong>
+                      )}
+
+                      <div className="tenant-record-contracts">
+                        <h4>
+                          {contratosDoImovel.length === 1 ? "Contrato vinculado" : `${contratosDoImovel.length} contratos vinculados`}
+                        </h4>
+                        {contratosDoImovel.map((contrato) => {
+                          const chaveContrato = `contrato-${contrato.id}`;
+                          const contratoAberto = detalheAberto === chaveContrato;
+                          const statusContrato = normalizarStatus(contrato.status);
+                          const faturasContrato = faturasPorContrato[contrato.id];
+                          const faturaAtual = faturasContrato?.find(
+                            (fatura) => !faturaEstaCancelada(fatura),
+                          );
+                          const statusFaturaAtual = faturaAtual
+                            ? normalizarStatusFatura(faturaAtual.status)
+                            : null;
+                          const faturaAtualEmAberto = faturaEstaEmAberto(faturaAtual);
+
+                          return (
+                            <div className="tenant-record-contract" key={contrato.id}>
+                              <div className="tenant-record-contract-summary">
+                                <div>
+                                  <span className="tenant-record-contract-label">Contrato #{contrato.id}</span>
+                                  <span className={`tenant-contract-status ${statusContrato.classe}`}>
+                                    <span />
+                                    {statusContrato.texto}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="tenant-more-button tenant-record-toggle"
+                                  onClick={() => {
+                                    const vaiAbrir = !contratoAberto;
+                                    alternarDetalhe(chaveContrato);
+                                    if (vaiAbrir) carregarFaturasDoContrato(contrato.id);
+                                  }}
+                                  aria-expanded={contratoAberto}
+                                >
+                                  {contratoAberto ? "Ocultar contrato" : "Ver mais do contrato"}
+                                  {contratoAberto ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+                                </button>
+                              </div>
+
+                              {contratoAberto && (
+                                <>
+                                  <div className="tenant-detail-list">
+                                    <div><span>Aluguel mensal</span><strong>{formatarMoeda(contrato.valor_aluguel)}</strong></div>
+                                    <div><span>Vencimento</span><strong>Dia {contrato.dia_vencimento || "Não informado"}</strong></div>
+                                    <div><span>Início</span><strong>{formatarData(contrato.data_inicio)}</strong></div>
+                                    <div><span>Término</span><strong>{formatarData(contrato.data_fim)}</strong></div>
+                                  </div>
+
+                                  <section className="tenant-payment-panel" aria-label={`Cobranças do contrato ${contrato.id}`}>
+                                    <div className="tenant-payment-heading">
+                                      <div>
+                                        <p className="tenant-eyebrow">Financeiro</p>
+                                        <h5>Pagamentos do aluguel</h5>
+                                      </div>
+                                      <div className="tenant-payment-actions">
+                                        <button
+                                          type="button"
+                                          className="tenant-payment-button tenant-payment-button-primary"
+                                          onClick={() => gerarOuExibirBoleto(contrato.id)}
+                                          disabled={Boolean(gerandoCobranca[contrato.id] || carregandoFaturas[contrato.id])}
+                                        >
+                                          {gerandoCobranca[contrato.id] ? "Gerando..." : "Gerar Boleto"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="tenant-payment-button"
+                                          onClick={() => {
+                                            const vaiAbrir = !historicoAberto[contrato.id];
+                                            setHistoricoAberto((atuais) => ({
+                                              ...atuais,
+                                              [contrato.id]: vaiAbrir,
+                                            }));
+                                            if (vaiAbrir) carregarFaturasDoContrato(contrato.id);
+                                          }}
+                                        >
+                                          {historicoAberto[contrato.id]
+                                            ? "Ocultar Histórico"
+                                            : "Ver Histórico de Pagamentos"}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {carregandoFaturas[contrato.id] && (
+                                      <p className="tenant-payment-message">Carregando faturas...</p>
+                                    )}
+                                    {errosFaturas[contrato.id] && (
+                                      <p className="tenant-payment-error" role="alert">{errosFaturas[contrato.id]}</p>
+                                    )}
+                                    {mensagensCobranca[contrato.id] && (
+                                      <p className="tenant-payment-message" role="status">{mensagensCobranca[contrato.id]}</p>
+                                    )}
+
+                                    {faturaAtual && (
+                                      <article className="tenant-current-invoice" aria-label="Cobrança atual">
+                                          <div className="tenant-invoice-summary">
+                                            <div>
+                                              <span>Vencimento</span>
+                                              <strong>{formatarData(faturaAtual.data_vencimento)}</strong>
+                                            </div>
+                                            <div>
+                                              <span>Valor</span>
+                                              <strong>{formatarMoeda(faturaAtual.valor)}</strong>
+                                            </div>
+                                            <span className={`tenant-invoice-status ${statusFaturaAtual.classe}`}>
+                                              {statusFaturaAtual.texto}
+                                            </span>
+                                          </div>
+
+                                          {faturaAtualEmAberto && (
+                                            <div className="tenant-invoice-actions">
+                                              {faturaAtual.boleto_pdf_url && (
+                                                <a
+                                                  className="tenant-payment-button"
+                                                  href={faturaAtual.boleto_pdf_url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                >
+                                                  <ExternalLink size={16} /> Abrir boleto PDF
+                                                </a>
+                                              )}
+                                              {faturaAtual.pix_copia_e_cola && (
+                                                <>
+                                                  <button
+                                                    type="button"
+                                                    className="tenant-payment-button"
+                                                    onClick={() => copiarCodigoPix(faturaAtual.id, faturaAtual.pix_copia_e_cola)}
+                                                  >
+                                                    <Copy size={16} />
+                                                    {pixCopiadoPorFatura[faturaAtual.id] ? "Pix copiado" : "Copiar Pix"}
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className="tenant-payment-button"
+                                                    onClick={() => alternarQrCodePix(contrato.id, faturaAtual)}
+                                                    disabled={Boolean(carregandoPix[faturaAtual.id])}
+                                                  >
+                                                    <QrCode size={16} />
+                                                    {carregandoPix[faturaAtual.id]
+                                                      ? "Carregando QR..."
+                                                      : qrAbertoPorFatura[faturaAtual.id]
+                                                        ? "Ocultar QR Pix"
+                                                        : "Mostrar QR Pix"}
+                                                  </button>
+                                                </>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {faturaAtual.pago && (
+                                            <div className="tenant-invoice-actions">
+                                              <button
+                                                type="button"
+                                                className="tenant-payment-button"
+                                                onClick={() => imprimirComprovantePagamento(faturaAtual, contrato, usuario)}
+                                              >
+                                                <Printer size={16} /> Imprimir comprovante
+                                              </button>
+                                            </div>
+                                          )}
+
+                                          {!faturaAtual.asaas_payment_id && (
+                                            <p className="tenant-payment-message">
+                                              A cobrança foi preparada e aparecerá aqui quando o Asaas a emitir.
+                                            </p>
+                                          )}
+
+                                          {errosPix[faturaAtual.id] && (
+                                            <p className="tenant-payment-error" role="alert">{errosPix[faturaAtual.id]}</p>
+                                          )}
+                                          {qrAbertoPorFatura[faturaAtual.id] && imagensPixPorFatura[faturaAtual.id] && (
+                                            <div className="tenant-pix-qr">
+                                              <Image
+                                                src={obterFonteImagemPix(imagensPixPorFatura[faturaAtual.id])}
+                                                alt="QR Code Pix da cobrança atual"
+                                                width={220}
+                                                height={220}
+                                                unoptimized
+                                              />
+                                            </div>
+                                          )}
+                                      </article>
+                                    )}
+
+                                    {historicoAberto[contrato.id] && (
+                                      <div className="tenant-invoice-history">
+                                        <h6>Histórico de pagamentos</h6>
+                                        {!carregandoFaturas[contrato.id] && faturasContrato?.length === 0 && (
+                                          <p className="tenant-payment-message">Ainda não há faturas registradas para este contrato.</p>
+                                        )}
+                                        {faturasContrato?.map((fatura) => {
+                                          const statusFatura = normalizarStatusFatura(fatura.status);
+                                          const faturaEmAberto = faturaEstaEmAberto(fatura);
+
+                                          return (
+                                            <article className="tenant-history-invoice" key={fatura.id}>
+                                              <div className="tenant-history-invoice-data">
+                                                <div>
+                                                  <span>Vencimento</span>
+                                                  <strong>{formatarData(fatura.data_vencimento)}</strong>
+                                                </div>
+                                                <div>
+                                                  <span>Valor</span>
+                                                  <strong>{formatarMoeda(fatura.valor)}</strong>
+                                                </div>
+                                                <span className={`tenant-invoice-status ${statusFatura.classe}`}>
+                                                  {statusFatura.texto}
+                                                </span>
+                                              </div>
+                                              {faturaEmAberto && (
+                                                <div className="tenant-invoice-actions">
+                                                  {fatura.boleto_pdf_url && (
+                                                    <a
+                                                      className="tenant-payment-button"
+                                                      href={fatura.boleto_pdf_url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                    >
+                                                      <ExternalLink size={16} /> Segunda via do boleto
+                                                    </a>
+                                                  )}
+                                                  {fatura.pix_copia_e_cola && (
+                                                    <button
+                                                      type="button"
+                                                      className="tenant-payment-button"
+                                                      onClick={() => copiarCodigoPix(fatura.id, fatura.pix_copia_e_cola)}
+                                                    >
+                                                      <Copy size={16} />
+                                                      {pixCopiadoPorFatura[fatura.id] ? "Pix copiado" : "Copiar Pix"}
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
+                                              {fatura.pago && (
+                                                <div className="tenant-invoice-actions">
+                                                  <button
+                                                    type="button"
+                                                    className="tenant-payment-button"
+                                                    onClick={() => imprimirComprovantePagamento(fatura, contrato, usuario)}
+                                                  >
+                                                    <Printer size={16} /> Imprimir comprovante
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </article>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </section>
+                                </>
+                              )}
                             </div>
                             <div>
                               <span>Telefone</span>

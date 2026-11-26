@@ -41,6 +41,8 @@ services:
       DB_DATABASE: chaveo
       PORT: 4000
       JWT_SECRET: ${JWT_SECRET} #token
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
       CHOKIDAR_USEPOLLING: "true"
     
 
@@ -48,6 +50,7 @@ services:
       - postgres
     networks:
       - app-network
+
 
   frontend:
     build:
