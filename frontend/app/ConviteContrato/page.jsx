@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Button from "../components/Button";
 
+const apiUrl = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
+).replace(/\/$/, "");
+
 export default function ConviteContrato() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -26,18 +30,37 @@ export default function ConviteContrato() {
 
       const token = sessionStorage.getItem("token");
 
-      if (!token) {
-        router.replace(
-          `/login?redirect=${encodeURIComponent(
-            `/ConviteContrato?token=${tokenConvite}`,
-          )}`,
-        );
-        return;
-      }
-
       try {
+        if (!token) {
+          const conviteCodificado = encodeURIComponent(tokenConvite);
+          const caminhoConvite = `/ConviteContrato?token=${conviteCodificado}`;
+
+          const respostaDestino = await fetch(
+            `${apiUrl}/contratos/convite/${conviteCodificado}/destino`,
+            { cache: "no-store" }
+          );
+
+          const dadosDestino = await respostaDestino.json().catch(() => ({}));
+
+          if (!respostaDestino.ok) {
+            throw new Error(dadosDestino.message || "Convite indisponível.");
+          }
+
+          if (dadosDestino.destino === "CADASTRO") {
+            router.replace(`/cadastro?convite=${conviteCodificado}`);
+            return;
+          }
+
+          if (dadosDestino.destino === "LOGIN") {
+            router.replace(`/login?redirect=${encodeURIComponent(caminhoConvite)}`);
+            return;
+          }
+
+          throw new Error("Não foi possível identificar o destino do convite.");
+        }
+
         const resposta = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/contratos/convite/${tokenConvite}`,
+          `${apiUrl}/contratos/convite/${encodeURIComponent(tokenConvite)}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -53,8 +76,8 @@ export default function ConviteContrato() {
         }
 
         setContrato(dados);
-      } catch {
-        setMensagem("Não foi possível conectar ao servidor.");
+      } catch (erro) {
+        setMensagem(erro.message || "Não foi possível conectar ao servidor.");
       } finally {
         setCarregando(false);
       }
@@ -81,7 +104,7 @@ export default function ConviteContrato() {
       }
 
       const resposta = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/contratos/convite/${tokenConvite}/aceitar`,
+        `${apiUrl}/contratos/convite/${encodeURIComponent(tokenConvite)}/aceitar`,
         {
           method: "POST",
           headers: {
@@ -99,7 +122,16 @@ export default function ConviteContrato() {
 
       setConviteAceito(true);
       setMensagem("Convite aceito com sucesso!");
-      router.push(`/CompletarContrato?id=${dados.contrato_id}`);
+      //router.push(`/CompletarContrato?id=${dados.contrato_id}`);
+      const destino = `/CompletarContrato?id=${encodeURIComponent(dados.contrato_id)}`;
+
+      if (dados.perfil_adicionado) {
+        sessionStorage.removeItem("token");
+        router.replace(`/login?origem=convite&redirect=${encodeURIComponent(destino)}`);
+        return;
+      }
+
+      router.push(destino);
     } catch {
       setMensagem("Não foi possível conectar ao servidor.");
     } finally {

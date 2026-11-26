@@ -19,6 +19,9 @@ export class Prestador {
   @JoinColumn({ name: 'usuario_id' })
   usuario: Usuario;
 
+  @Column({ type: 'int', nullable: true })
+  categoria_id: number | null;
+
   @Column({ type: 'text', nullable: true })
   descricao: string;
 

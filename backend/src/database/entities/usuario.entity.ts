@@ -25,7 +25,7 @@ export class Usuario {
   @Column({ type: 'varchar', length: 30, nullable: true })
   estado_civil: string | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 150, nullable: true })
   profissao: string | null;
 
   @Column({ type: 'varchar', length: 255, unique: true })

@@ -1,14 +1,18 @@
 // src/controllers/cadastroController.ts
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, HttpException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { Usuario } from '../database/entities/usuario.entity';
 import { Perfil } from '../database/entities/perfil.entity';
-
+import { Contrato } from '../database/entities/contrato.entity';
+import { DadosRecebimentoProprietarioService } from '../services/dados-recebimento-proprietario.service';
 @Controller('cadastro')
 export class CadastroController {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly dadosRecebimentoService: DadosRecebimentoProprietarioService,
+  ) {}
 
 @Post()
 async cadastrar(@Body() body: any) {
@@ -23,6 +27,8 @@ async cadastrar(@Body() body: any) {
     estado_civil,
     profissao,
     perfil,
+    convite_token,
+    dados_recebimento,
     cidade,
     estado,
     categoria_id,
@@ -31,6 +37,10 @@ async cadastrar(@Body() body: any) {
 
   if (!nome || !cpf || !email || !senha || !perfil) {
     throw new BadRequestException('Preencha todos os campos obrigatórios.');
+  }
+
+  if (dados_recebimento !== undefined && perfil !== 'PROPRIETARIO') {
+    throw new BadRequestException('Somente proprietários podem cadastrar dados de recebimento.');
   }
 
   const cpfLimpo = cpf.replace(/\D/g, '');
@@ -43,6 +53,27 @@ async cadastrar(@Body() body: any) {
   try {
     const resultado = await this.dataSource.transaction(async (manager) => {
  
+        if (convite_token !== undefined) {
+          if (
+            typeof convite_token !== 'string' ||
+            !convite_token ||
+            perfil !== 'INQUILINO'
+          ) {
+            throw new BadRequestException('Convite ou perfil inválido.');
+          }
+
+          const contrato = await manager.findOne(Contrato, {
+            where: {
+              convite_token,
+              status: 'AGUARDANDO_INQUILINO',
+            },
+          });
+
+          if (!contrato || contrato.cpf_locatario !== cpfLimpo) {
+            throw new BadRequestException('Convite indisponível para este CPF.');
+          }
+        }
+              
       const perfilEncontrado = await manager.findOne(Perfil, {
         where: { nome: perfil },
       });
@@ -55,6 +86,17 @@ async cadastrar(@Body() body: any) {
       let usuarioSalvo = await manager.findOne(Usuario, {
         where: [{ email }, { cpf: cpfLimpo }],
       });
+
+ 
+      if (convite_token !== undefined && usuarioSalvo) {
+        throw new BadRequestException(
+          'Já existe uma conta com esse CPF ou e-mail. Entre com a conta do CPF convidado.',
+        );
+      }
+
+      if (usuarioSalvo && dados_recebimento !== undefined) {
+        throw new BadRequestException('Para configurar o recebimento de uma conta existente, entre no dashboard.');
+      }
 
       if (usuarioSalvo) {
         const relacaoExistente = await manager.query(
@@ -81,6 +123,9 @@ async cadastrar(@Body() body: any) {
           nacionalidade: nacionalidade || 'Brasileira',
           estado_civil: estado_civil || 'SOLTEIRO',
           profissao: profissao || null,
+          ...(dados_recebimento === undefined
+            ? {}
+            : this.dadosRecebimentoService.prepararDados(dados_recebimento)),
           ativo: true,
         });
 
@@ -104,9 +149,15 @@ async cadastrar(@Body() body: any) {
 
         if (!prestadorId) {
           const insercaoPrestador = await manager.query(
-            `INSERT INTO prestadores ( usuario_id, descricao, cidade, estado)
-             VALUES ( $1, $2, $3, $4) RETURNING id`,
-            [usuarioSalvo.id, descricao || '', cidade || '', estado || ''],
+            `INSERT INTO prestadores (usuario_id, descricao, cidade, estado, categoria_id)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [
+              usuarioSalvo.id,
+              descricao || '',
+              cidade || '',
+              estado || '',
+              /^[1-8]$/.test(String(categoria_id)) ? Number(categoria_id) : null,
+            ],
           );
           prestadorId = insercaoPrestador[0]?.id;
         }
@@ -120,7 +171,7 @@ async cadastrar(@Body() body: any) {
       id: resultado.id,
     };
   } catch (error: any) {
-    if (error instanceof BadRequestException) {
+    if (error instanceof HttpException) {
       throw error;
     }
     throw new BadRequestException(error.message || 'Erro ao realizar cadastro.');

@@ -6,9 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { Contrato } from '../database/entities/contrato.entity';
 import { Fatura } from '../database/entities/fatura.entity';
+import { Repasse } from '../database/entities/repasse.entity';
 import { Usuario } from '../database/entities/usuario.entity';
 import {
   buscarPixPagamentoAsaas,
@@ -28,6 +29,53 @@ export class AsaasCobrancaService {
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
   ) {}
+
+  listarHistoricoDoProprietario(usuarioId: string) {
+    return this.faturaRepository.createQueryBuilder('fatura')
+      .innerJoin('fatura.imovel', 'imovel')
+      .innerJoin('fatura.locatario', 'inquilino')
+      .leftJoin(Repasse, 'repasse', 'repasse.fatura_id = fatura.id')
+      .select('fatura.id', 'id')
+      .addSelect('fatura.valor', 'valor')
+      .addSelect('fatura.status', 'status_fatura')
+      .addSelect('fatura.pago', 'pago')
+      .addSelect('CAST(fatura.data_vencimento AS text)', 'vencimento')
+      .addSelect('imovel.logradouro', 'logradouro')
+      .addSelect('imovel.numero', 'numero')
+      .addSelect('imovel.cidade', 'cidade')
+      .addSelect('inquilino.nome', 'inquilino')
+      .addSelect('repasse.status', 'status_repasse')
+      .addSelect(
+        "fatura.pago AND repasse.status = 'FALHA'",
+        'pode_tentar_repasse',
+      )
+      .where('fatura.locador_id = :usuarioId', { usuarioId })
+      .orderBy('fatura.data_vencimento', 'DESC')
+      .addOrderBy('fatura.id', 'DESC')
+      .getRawMany();
+  }
+
+  async listarBoletosDoInquilino(usuarioId: string) {
+    const faturas = await this.faturaRepository.find({
+      where: { locatario_id: usuarioId, asaas_payment_id: Not(IsNull()) },
+      relations: { imovel: true },
+      order: { data_vencimento: 'DESC', id: 'DESC' },
+    });
+
+    return faturas.map((fatura) => ({
+      id: fatura.id,
+      status: fatura.status,
+      pago: fatura.pago,
+      valor: fatura.valor,
+      data_vencimento: fatura.data_vencimento,
+      data_pagamento: fatura.data_pagamento,
+      registrado_em: fatura.criado_em,
+      imovel: fatura.imovel ? {
+        logradouro: fatura.imovel.logradouro,
+        numero: fatura.imovel.numero,
+      } : null,
+    }));
+  }
 
   // Lista somente as faturas do contrato pertencente ao inquilino autenticado.
   async listarFaturasDoContrato(contratoId: string, usuarioId: string) {
@@ -77,7 +125,12 @@ export class AsaasCobrancaService {
   // Cria ou reutiliza cliente e assinatura, e registra a primeira cobrança emitida.
   async gerarCobranca(contratoId: string, usuarioId: string) {
     const contrato = await this.buscarContratoDoInquilino(contratoId, usuarioId);
-    const inquilino = contrato.locatario;
+    if (contrato.status !== 'CONCLUIDO') {
+      throw new BadRequestException(
+        'A cobrança só pode ser gerada após a conclusão do contrato.',
+      );
+    }
+        const inquilino = contrato.locatario;
 
     if (
       !inquilino ||

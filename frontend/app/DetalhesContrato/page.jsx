@@ -29,6 +29,11 @@ const STATUS_CONFIG = {
     cor: "bg-blue-100 text-blue-800",
     etapa: 2,
   },
+  CANCELADO: {
+    rotulo: "Contrato cancelado",
+    cor: "bg-red-100 text-red-800",
+    etapa: 2,
+  },
   AGUARDANDO_REVISAO: {
     rotulo: "Pronto para revisão do proprietário",
     cor: "bg-purple-100 text-purple-800",
@@ -69,6 +74,7 @@ function ConteudoDetalhesContrato() {
   const [feedback, setFeedback] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [gerandoConvite, setGerandoConvite] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
 
   const carregarContrato = useCallback(
     async (silencioso = false) => {
@@ -191,6 +197,42 @@ function ConteudoDetalhesContrato() {
       setErro("Não foi possível conectar ao servidor.");
     } finally {
       setGerandoConvite(false);
+    }
+  }
+
+  const podeCancelar = ["AGUARDANDO_INQUILINO", "PENDENTE_DADOS"].includes(contrato?.status);
+
+  async function cancelarContrato() {
+    if (!podeCancelar || cancelando) return;
+    if (!window.confirm("Cancelar este contrato? O convite e o envio de dados ficarão indisponíveis.")) return;
+
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      setErro("Você precisa fazer login novamente.");
+      return;
+    }
+
+    setCancelando(true);
+    setErro("");
+    setFeedback("");
+
+    try {
+      const resposta = await fetch(`${apiUrl}/contratos/${contrato.id}/cancelar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const dados = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(dados.message || "Não foi possível cancelar o contrato.");
+      }
+
+      setContrato((atual) => ({ ...atual, status: dados.status, convite_token: null }));
+      setFeedback(dados.mensagem);
+    } catch (falha) {
+      setErro(falha.message || "Não foi possível cancelar o contrato.");
+    } finally {
+      setCancelando(false);
     }
   }
 
@@ -555,10 +597,37 @@ const [seguradora, setSeguradora] = useState("");
               )}
 
               {contrato.status === "PENDENTE_DADOS" && (
-                <div className="pt-2 border-t border-slate-200 text-sm text-slate-700">
-                  O inquilino já aceitou o convite e está concluindo o
-                  preenchimento dos dados da garantia. Esta tela atualiza
-                  automaticamente.
+                <div className="space-y-3 border-t border-slate-200 pt-3">
+                  <p className="text-sm text-slate-700">
+                    O inquilino já aceitou o convite e está preenchendo os dados.
+                  </p>
+                </div>
+              )}
+
+              {podeCancelar && (
+                <div className="flex justify-center border-t border-slate-200 pt-3">
+                  <button
+                    type="button"
+                    onClick={cancelarContrato}
+                    disabled={cancelando}
+                    className="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    {cancelando ? "Cancelando..." : "Cancelar contrato"}
+                  </button>
+                </div>
+              )}
+
+              {contrato.status === "CANCELADO" && (
+                <div className="flex justify-center border-t border-slate-200 pt-3">
+                  {imovelId && (
+                    <Link
+                      href={`/CadastroContrato?imovelId=${imovelId}&novo=true`}
+                      className="inline-flex items-center gap-2 rounded-lg bg-teal px-4 py-2.5 text-sm font-bold text-white"
+                    >
+                      <Plus size={16} />
+                      Iniciar novo contrato
+                    </Link>
+                  )}
                 </div>
               )}
 
@@ -585,7 +654,7 @@ const [seguradora, setSeguradora] = useState("");
                   {imovelId && (
                     <Link
                       href={`/CadastroContrato?imovelId=${imovelId}&novo=true`}
-                      className="inline-flex items-center gap-2 bg-teal text-white font-bold px-4 py-2.5 rounded-lg text-sm"
+                      className="mx-auto flex w-fit items-center gap-2 bg-teal text-white font-bold px-4 py-2.5 rounded-lg text-sm"
                     >
                       <Plus size={16} />
                       Iniciar Novo Contrato para este Imóvel

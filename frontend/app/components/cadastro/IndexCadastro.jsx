@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import FormBasic from './FormBasic';
 import FormLocador from './FormLocador';
 import FormLocatario from './FormLocatario';
@@ -8,13 +10,25 @@ import FormPrestador from './FormPrestador';
 import SelectPerfil from './SelectPerfil';
 
 export const TIPOS_PERFIL = ['INQUILINO', 'PROPRIETARIO', 'PRESTADOR'];
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/$/, "");
 
 export default function IndexCadastro() {
-  const [step, setStep] = useState(1);
-  const [perfil, setPerfil] = useState(null);
+  const searchParams = useSearchParams();
+  const conviteToken = searchParams.get("convite");
 
+  const caminhoConvite = conviteToken
+    ? `/ConviteContrato?token=${encodeURIComponent(conviteToken)}`
+    : null;
+
+  const [step, setStep] = useState(conviteToken ? 2 : 1);
+  const [perfil, setPerfil] = useState(conviteToken ? "INQUILINO" : null);
+  
+  /*const [step, setStep] = useState(1);
+  const [perfil, setPerfil] = useState(null);
+*/
   
   const [loading, setLoading] = useState(false);
+  const [recebimento, setRecebimento] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
  
   const [formData, setFormData] = useState({
@@ -27,7 +41,6 @@ export default function IndexCadastro() {
     nacionalidade: 'Brasileira',
     estado_civil: 'SOLTEIRO',
     profissao: '',
-    chave_pix: '',
     cidade: '',
     estado: '',
     categoria_id: '1',
@@ -39,19 +52,22 @@ export default function IndexCadastro() {
     setStep(2);
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async ({ dadosRecebimento, pularComplemento } = {}) => {
     setLoading(true);
     setErrorMessage('');
 
     try {
-      const response = await fetch('http://localhost:4000/api/cadastro', {
+      const response = await fetch(`${apiUrl}/cadastro`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...formData,
-          perfil,  
+          ...(pularComplemento ? { rg: "", estado_civil: "", profissao: "" } : {}),
+          perfil: conviteToken ? "INQUILINO" : perfil,
+          ...(conviteToken ? { convite_token: conviteToken } : {}),
+          ...(dadosRecebimento ? { dados_recebimento: dadosRecebimento } : {}),
         }),
       });
 
@@ -62,8 +78,10 @@ export default function IndexCadastro() {
       }
 
       alert('Conta criada com sucesso!');
-      window.location.href = '/login';
-
+      //window.location.href = '/login';
+      window.location.href = caminhoConvite
+        ? `/login?redirect=${encodeURIComponent(caminhoConvite)}`
+        : "/login";
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -73,6 +91,12 @@ export default function IndexCadastro() {
 
   return (
     <div className="bg-[#0A0D14] min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-['Consolas',_monospace] text-slate-100">
+      <Link
+        href="/"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 text-[#00D9B5] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00D9B5]"
+      >
+        <span aria-hidden="true">←</span> Voltar
+      </Link>
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
         <h1 className="text-4xl font-extrabold text-[#00D9B5] tracking-wider drop-shadow-[0_0_12px_rgba(0,217,181,0.3)]">
           &lt;Chaveo /&gt;
@@ -116,7 +140,15 @@ export default function IndexCadastro() {
                 <FormBasic
                   formData={formData}
                   setFormData={setFormData}
-                  onBack={() => setStep(1)}
+                  //onBack={() => setStep(1)}
+                  onBack={() => {
+                    if (caminhoConvite) {
+                      window.location.href = caminhoConvite;
+                      return;
+                    }
+
+                    setStep(1);
+                  }}
                   onNext={() => setStep(3)}
                 />
               )}
@@ -134,6 +166,8 @@ export default function IndexCadastro() {
                 <FormLocador
                   formData={formData}
                   setFormData={setFormData}
+                  recebimento={recebimento}
+                  setRecebimento={setRecebimento}
                   onBack={() => setStep(2)}
                   onFinish={handleFinish}
                 />

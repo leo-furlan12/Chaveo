@@ -3,6 +3,8 @@
 import Logo from "../components/Logo";
 import Checkbox from "../components/Checkbox";
 import Button from "../components/Button";
+import { lerPerfisDoToken, listarAreas } from "../components/TrocarPerfil";
+import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -16,6 +18,10 @@ function ConteudoLogin() {
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [areas, setAreas] = useState([]);
+  const destinoSolicitado = redirect && /^\/(?![\/\\])/.test(redirect) && !/[\\\x00-\x20]/.test(redirect)
+    ? redirect
+    : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -47,6 +53,22 @@ function ConteudoLogin() {
       sessionStorage.setItem("token", tokenRecebido);
       setMensagem("Login realizado com sucesso!");
 
+      const areasDisponiveis = listarAreas(
+        dados.perfis ?? dados.usuario?.perfis ?? lerPerfisDoToken(tokenRecebido),
+      );
+
+      const veioDoConvite = destinoSolicitado?.startsWith("/ConviteContrato?");
+      const acabouDeAceitarConvite = searchParams.get("origem") === "convite" &&
+        destinoSolicitado?.startsWith("/CompletarContrato?");
+
+      if (veioDoConvite || acabouDeAceitarConvite) {
+        router.replace(destinoSolicitado);
+        return;
+      }
+
+      if (areasDisponiveis.length > 1) {
+        setAreas(areasDisponiveis);
+        return;
       let payloadToken = {};
       try {
         if (tokenRecebido) {
@@ -70,12 +92,38 @@ function ConteudoLogin() {
       } else {
         router.replace("/dashboardteste");
       }
+
+      router.replace(destinoSolicitado || areasDisponiveis[0]?.href || "/dashboardteste");
     } catch {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
     } finally {
       setCarregando(false);
     }
+  }
+
+  if (areas.length > 1) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-ink p-4 text-paper">
+        <section aria-labelledby="escolher-perfil" className="w-full max-w-md rounded-2xl border border-teal/30 bg-ink-soft p-6 sm:p-8">
+          <h1 id="escolher-perfil" tabIndex={-1} ref={(titulo) => titulo?.focus()} className="text-2xl font-semibold">
+            Com qual perfil você quer entrar?
+          </h1>
+          <div className="mt-6 grid gap-3">
+            {areas.map(({ perfil, nome, href }) => (
+              <button
+                key={perfil}
+                type="button"
+                onClick={() => router.replace(href)}
+                className="rounded-lg border border-teal/40 bg-teal/10 px-4 py-3 text-left font-semibold hover:bg-teal/20"
+              >
+                {nome}
+              </button>
+            ))}
+          </div>
+        </section>
+      </main>
+    );
   }
 
   function formatarCPF(valor) {
@@ -89,11 +137,12 @@ function ConteudoLogin() {
   }
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-paper flex flex-col">
-      <header>
-        <div className="p-8">
-          <Logo />
-        </div>
-      </header>
+      <Link
+        href="/"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 text-teal hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+      >
+        <span aria-hidden="true">←</span> Voltar
+      </Link>
 
       <section className="flex-1 flex content-center justify-center">
         <div>

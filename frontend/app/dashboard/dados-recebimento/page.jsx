@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import CamposRecebimento, { DADOS_VAZIOS, montarDadosRecebimento } from "../../components/CamposRecebimento";
 import { ArrowLeft, CheckCircle2, Landmark, Wallet } from "lucide-react";
 
 const DADOS_VAZIOS = {
@@ -112,10 +113,14 @@ export default function DadosRecebimentoPage() {
         throw new Error("Sua sessão expirou. Entre novamente para continuar.");
       }
 
+      const payload = montarDadosRecebimento(dados);
+      /*
       const payload = dados.tipo === "PIX"
         ? { tipo: "PIX", pix: dados.pix }
         : { tipo: "CONTA_BANCARIA", contaBancaria: dados.contaBancaria };
+        */
       const resposta = await fetch(`${apiUrl}/proprietarios/recebimento`, {
+    
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -219,6 +224,7 @@ export default function DadosRecebimentoPage() {
           </section>
         ) : (
           <form onSubmit={salvarDados} className="space-y-6 rounded-2xl border border-slate-800 bg-[#1A1E29] p-5 shadow-xl sm:p-8">
+            <CamposRecebimento dados={dados} setDados={setDados} />
             <div>
               <label htmlFor="tipo-destino" className="mb-2 block text-sm font-medium text-slate-200">Como deseja receber?</label>
               <select id="tipo-destino" value={dados.tipo} onChange={(evento) => setDados((atual) => ({ ...atual, tipo: evento.target.value }))} className="w-full rounded-lg border border-slate-700 bg-[#14171F] px-3 py-3 text-sm text-white outline-none focus:border-[#00D9B5]">

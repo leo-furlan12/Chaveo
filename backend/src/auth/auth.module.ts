@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { PerfilService } from './perfil.service';
 import { Usuario } from '../database/entities/usuario.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';//biblioteca de token
@@ -18,7 +19,7 @@ import { JwtModule } from '@nestjs/jwt';//biblioteca de token
     //imports = 
     //usar repositorio da entidade usuario
     controllers: [AuthController], //controllers recebe requisições http
-    providers: [AuthService],//providers recebe logicas
+    providers: [AuthService, PerfilService],//providers recebe logicas
     exports: [JwtModule], //permite outros arquivos usam esse serviço
 })
 export class AuthModule {

@@ -1,5 +1,6 @@
 "use client";
 
+import TrocarPerfil, { BotaoPerfil } from "../components/TrocarPerfil";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 export default function Dashboard() {
@@ -65,6 +66,10 @@ if (verificando) {
       <p className="mt-2">
         Esta página está em desenvolvimento.
       </p>
+      <div className="mt-6 space-y-2">
+        <BotaoPerfil perfilAtual="PRESTADOR" />
+        <TrocarPerfil perfilAtual="PRESTADOR" />
+      </div>
       <button
   type="button"
   onClick={handleLogout}
