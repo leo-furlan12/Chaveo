@@ -504,17 +504,27 @@ export class ContratosController {
   }
 
 //consultar o proximo passo
-@Get('convite/:token/destino')
-async consultarDestinoConvite(@Param('token') token: string) {
-  const contrato = await this.contratoRepository.findOne({
-    where: {
-      convite_token: token,
-      status: 'AGUARDANDO_INQUILINO',
-    },
-  });
+  @Get('convite/:token/destino')
+  async consultarDestinoConvite(@Param('token') token: string) {
+    const contrato = await this.contratoRepository.findOne({
+      where: {
+        convite_token: token,
+        status: 'AGUARDANDO_INQUILINO',
+      },
+    });
 
-  if (!contrato?.cpf_locatario) {
-    throw new NotFoundException('Convite indisponível.');
+    if (!contrato?.cpf_locatario) {
+      throw new NotFoundException('Convite indisponível.');
+    }
+
+    const usuario = await this.usuarioRepository.findOne({
+      where: { cpf: contrato.cpf_locatario },
+    });
+
+    return {
+      possui_conta: Boolean(usuario),
+      cpf_locatario: contrato.cpf_locatario,
+    };
   }
 
   // consulta os dados de um convite
@@ -593,13 +603,6 @@ async consultarDestinoConvite(@Param('token') token: string) {
         lock: { mode: 'pessimistic_write' },
       });
 
-    /*
-    // procura o contrato pelo codigo do convite
-    const contrato = await this.contratoRepository.findOne({
-      where: { convite_token: token },
-    });
-    */
-
     // verifica se o convite existe
     if (!contrato) {
       throw new NotFoundException('Convite não encontrado');
@@ -622,12 +625,7 @@ async consultarDestinoConvite(@Param('token') token: string) {
       throw new BadRequestException('Este contrato já possui um inquilino');
     }
 
-    // procura o usuario que esta aceitando o convite
-    /*
-    const usuario = await this.usuarioRepository.findOne({
-      where: { id: usuarioId },
-    });
-    */
+  
     const usuario = await manager.findOne(Usuario, { where: { id: usuarioId } });
 
     // verifica se o usuario existe
@@ -648,16 +646,11 @@ async consultarDestinoConvite(@Param('token') token: string) {
         'Este convite não foi destinado a você',
       );
     }
-    /*
-    // associa o usuario logado ao contrato
-    contrato.locatario_id = usuarioId;
-    */
+   
 
       const perfilInquilino = await manager.findOne(Perfil, {
         where: { nome: 'INQUILINO' },
       });
-    // aguarda os dados adicionais do contrato
-   // contrato.status = 'PENDENTE_DADOS';
 
       if (!perfilInquilino) {
         throw new InternalServerErrorException(
@@ -1312,12 +1305,13 @@ async consultarDestinoConvite(@Param('token') token: string) {
       throw new ForbiddenException('Você não pode acessar este contrato');
     }
 
-    // impede gerar um contrato que ainda nao foi aprovado
+    // permite gerar a prévia na revisão e o PDF final após aprovação
     if (
+      contrato.status !== 'AGUARDANDO_REVISAO' &&
       contrato.status !== 'AGUARDANDO_ASSINATURAS' &&
       contrato.status !== 'CONCLUIDO'
     ) {
-      throw new BadRequestException('Este contrato ainda não foi aprovado');
+      throw new BadRequestException('Este contrato ainda não está disponível para geração de PDF');
     }
 
     // verifica se existem os dados necessarios
@@ -1325,6 +1319,14 @@ async consultarDestinoConvite(@Param('token') token: string) {
       throw new BadRequestException('Faltam dados para gerar o contrato');
     }
 
+    // fixa a data da primeira emissão (prévia) para não mudar nos dias seguintes
+    if (!contrato.data_emissao_pdf) {
+      contrato.data_emissao_pdf = new Date();
+      await this.contratoRepository.update(
+        { id },
+        { data_emissao_pdf: contrato.data_emissao_pdf },
+      );
+    }
 
     // configura a resposta para baixar o pdf
     response.setHeader('Content-Type', 'application/pdf');
@@ -1344,7 +1346,6 @@ async consultarDestinoConvite(@Param('token') token: string) {
 
     // finaliza o arquivo
     pdf.end();
-
   }
   // inquilino envia renda, ocupação e documentos comprobatórios
   @Post(':id/ficha-cadastral')
@@ -1715,6 +1716,7 @@ async consultarDestinoConvite(@Param('token') token: string) {
   }
 
   // edita os dados do contrato enquanto o inquilino ainda não aceitou o convite
+// edita os dados do contrato enquanto o inquilino ainda não aceitou o convite
   @Patch(':id')
   @UseGuards(AuthGuard)
   async atualizarContratoPreAceite(
@@ -1730,13 +1732,14 @@ async consultarDestinoConvite(@Param('token') token: string) {
         lock: { mode: 'pessimistic_write' },
       });
 
-
-    if (!contrato) {
-      throw new NotFoundException('Contrato não encontrado');
-    }
+      if (!contrato) {
+        throw new NotFoundException('Contrato não encontrado');
+      }
 
       if (String(contrato.locador_id) !== usuarioId) {
-        throw new ForbiddenException('Apenas o proprietário pode editar o contrato');
+        throw new ForbiddenException(
+          'Apenas o proprietário pode editar o contrato',
+        );
       }
 
       if (
@@ -1753,28 +1756,23 @@ async consultarDestinoConvite(@Param('token') token: string) {
         if (cpfLimpo.length !== 11) {
           throw new BadRequestException('Informe um CPF válido com 11 dígitos');
         }
-        contrato.cpf_locatario = cpfLimpo;
-      }
 
-      if (body.valor_aluguel !== undefined) {
-        contrato.valor_aluguel = String(Number(body.valor_aluguel));
-      const locador = await this.usuarioRepository.findOne({
-        where: { id: usuarioId },
-      });
+        const locador = await manager.findOne(Usuario, {
+          where: { id: usuarioId },
+        });
 
-      if (locador && locador.cpf === cpfLimpo) {
-        throw new BadRequestException(
-          'Você não pode informar o seu próprio CPF como inquilino.',
-        );
-      }
+        if (locador && locador.cpf === cpfLimpo) {
+          throw new BadRequestException(
+            'Você não pode informar o seu próprio CPF como inquilino.',
+          );
+        }
 
-      const usuarioDestino = await this.usuarioRepository.findOne({
-        where: { cpf: cpfLimpo },
-      });
+        const usuarioDestino = await manager.findOne(Usuario, {
+          where: { cpf: cpfLimpo },
+        });
 
-      if (usuarioDestino) {
-        const perfisDestino: Array<{ nome: string }> =
-          await this.usuarioRepository.query(
+        if (usuarioDestino) {
+          const perfisDestino: Array<{ nome: string }> = await manager.query(
             `SELECT p.nome
              FROM perfis p
              INNER JOIN usuarios_perfis up ON up.perfil_id = p.id
@@ -1782,50 +1780,22 @@ async consultarDestinoConvite(@Param('token') token: string) {
             [usuarioDestino.id],
           );
 
-        const nomesPerfis = perfisDestino.map((p) =>
-          String(p.nome).toUpperCase(),
-        );
-
-        if (!nomesPerfis.includes('INQUILINO')) {
-          throw new BadRequestException(
-            'O CPF informado pertence a um proprietário e não pode ser cadastrado como inquilino.',
+          const nomesPerfis = perfisDestino.map((p) =>
+            String(p.nome).toUpperCase(),
           );
+
+          if (!nomesPerfis.includes('INQUILINO')) {
+            throw new BadRequestException(
+              'O CPF informado pertence a um proprietário e não pode ser cadastrado como inquilino.',
+            );
+          }
         }
+
+        contrato.cpf_locatario = cpfLimpo;
       }
 
-      contrato.cpf_locatario = cpfLimpo;
-    }
-    if (body.valor_aluguel !== undefined) {
-      contrato.valor_aluguel = String(Number(body.valor_aluguel));
-
-    }
-    if (body.data_inicio !== undefined) {
-      contrato.data_inicio = body.data_inicio;
-    }
-    if (body.data_fim !== undefined) {
-      contrato.data_fim = body.data_fim;
-    }
-    if (body.dia_vencimento !== undefined) {
-      contrato.dia_vencimento = Number(body.dia_vencimento);
-    }
-    if (body.indice_reajuste !== undefined) {
-      contrato.indice_reajuste = body.indice_reajuste;
-    }
-    if (body.despesas_inclusas !== undefined) {
-      contrato.despesas_inclusas = Array.isArray(body.despesas_inclusas)
-        ? body.despesas_inclusas
-        : [];
-    }
-    if (body.garantia !== undefined) {
-      contrato.garantia = body.garantia;
-      contrato.tipo_caucao =
-        body.garantia === 'caucao' ? body.tipo_caucao || null : null;
-      contrato.valor_caucao =
-        body.garantia === 'caucao' && body.tipo_caucao === 'negociado'
-          ? String(Number(body.valor_caucao))
-          : null;
-    }
-
+      if (body.valor_aluguel !== undefined) {
+        contrato.valor_aluguel = String(Number(body.valor_aluguel));
       }
       if (body.data_inicio !== undefined) {
         contrato.data_inicio = body.data_inicio;

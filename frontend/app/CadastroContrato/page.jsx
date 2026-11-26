@@ -77,7 +77,9 @@ function ConteudoCadastroContrato() {
               // Libera o formulário para um novo contrato após recusa ou cancelamento.
               if (
                 modoNovo &&
-                ["CADASTRO_RECUSADO", "CANCELADO"].includes(contratoExistente.status)
+                ["CADASTRO_RECUSADO", "CANCELADO"].includes(
+                  contratoExistente.status,
+                )
               ) {
                 return;
               }
@@ -130,16 +132,16 @@ function ConteudoCadastroContrato() {
 
     inicializarTela();
   }, [imovelId, apiUrl, modoEdicao, modoNovo]);
-  
- function formatarCPF(valor) {
-      const digitos = String(valor || "")
-        .replace(/\D/g, "")
-        .slice(0, 11);
-      return digitos
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    }
+
+  function formatarCPF(valor) {
+    const digitos = String(valor || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
+    return digitos
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
 
   function alterarDespesa(despesa) {
     if (despesas.includes(despesa)) {
@@ -154,7 +156,7 @@ function ConteudoCadastroContrato() {
       alert("Nenhum imóvel foi selecionado.");
       return false;
     }
-try {
+    try {
       const token = sessionStorage.getItem("token");
       if (token) {
         const payload = JSON.parse(atob(token.split(".")[1]));
@@ -410,8 +412,15 @@ try {
     const contratoAprovado =
       statusContrato === "AGUARDANDO_ASSINATURAS" ||
       statusContrato === "CONCLUIDO";
-  
-   
+    const NOMES_DESPESAS = {
+      agua: "Água",
+      luz: "Luz",
+      internet: "Internet",
+      gas: "Gás",
+      condominio: "Condomínio",
+      iptu: "IPTU",
+    };
+
     return (
       <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
         <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
@@ -671,7 +680,12 @@ try {
                   checked={despesas.includes("iptu")}
                   onChange={() => alterarDespesa("iptu")}
                 />
-                <p>Despesas selecionadas: {despesas.join(", ")}</p>
+                <p className="mt-2 text-sm">
+  Despesas selecionadas:{" "}
+  {despesas.length > 0
+    ? despesas.map((item) => NOMES_DESPESAS[item] || item).join(", ")
+    : "Nenhuma"}
+</p>
               </div>
             )}
 

@@ -415,7 +415,27 @@ const [seguradora, setSeguradora] = useState("");
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
+const NOMES_DESPESAS = {
+  agua: "Água",
+  luz: "Luz",
+  internet: "Internet",
+  gas: "Gás",
+  condominio: "Condomínio",
+  iptu: "IPTU",
+};
 
+const NOMES_GARANTIA = {
+  fiador: "Fiador",
+  seguro: "Seguro-fiança",
+  caucao: "Caução",
+  nenhuma: "Sem garantia",
+};
+
+const NOMES_TIPO_CAUCAO = {
+  "3": "3 aluguéis",
+  "2": "2 aluguéis",
+  negociado: "Valor negociado",
+};
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft p-6 text-slate-darker">
       <div className="max-w-3xl mx-auto bg-paper rounded-xl p-7 shadow-lg">
@@ -859,7 +879,9 @@ const [seguradora, setSeguradora] = useState("");
               <p>
                 <strong>Despesas inclusas:</strong>{" "}
                 {contrato.despesas_inclusas?.length
-                  ? contrato.despesas_inclusas.join(", ")
+                  ? contrato.despesas_inclusas
+                      .map((d) => NOMES_DESPESAS[d] || d)
+                      .join(", ")
                   : "Nenhuma"}
               </p>
             </section>
@@ -869,7 +891,7 @@ const [seguradora, setSeguradora] = useState("");
                 Garantia Locatícia
               </h2>
               <p>
-                <strong>Modalidade:</strong> {contrato.garantia}
+                <strong>Modalidade:</strong> {NOMES_GARANTIA[contrato.garantia] || contrato.garantia}
               </p>
               {contrato.garantia === "caucao" && (
                 <p>

@@ -138,6 +138,28 @@ export default function ConviteContrato() {
       setAceitando(false);
     }
   }
+
+  const NOMES_DESPESAS = {
+  agua: "Água",
+  luz: "Luz",
+  internet: "Internet",
+  gas: "Gás",
+  condominio: "Condomínio",
+  iptu: "IPTU",
+};
+
+const NOMES_GARANTIA = {
+  fiador: "Fiador",
+  seguro: "Seguro-fiança",
+  caucao: "Caução",
+  nenhuma: "Sem garantia",
+};
+
+const NOMES_TIPO_CAUCAO = {
+  "3": "3 aluguéis",
+  "2": "2 aluguéis",
+  negociado: "Valor negociado",
+};
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
       <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
@@ -187,7 +209,7 @@ export default function ConviteContrato() {
               <strong>Vencimento:</strong> Dia {contrato.dia_vencimento}
             </p>
             <p>
-              <strong>Garantia:</strong> {contrato.garantia}
+              <strong>Garantia:</strong> {NOMES_GARANTIA[contrato.garantia] || contrato.garantia}
             </p>
 
             <div className="mt-6">
