@@ -14,6 +14,39 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+const NOMES_DESPESAS = {
+  agua: "Água",
+  luz: "Luz",
+  internet: "Internet",
+  gas: "Gás",
+  condominio: "Condomínio",
+  iptu: "IPTU",
+};
+
+const NOMES_GARANTIA = {
+  fiador: "Fiador",
+  seguro: "Seguro-fiança",
+  caucao: "Caução",
+  nenhuma: "Sem garantia",
+};
+
+const NOMES_TIPO_CAUCAO = {
+  "3": "3 aluguéis",
+  "2": "2 aluguéis",
+  negociado: "Valor negociado",
+};
+
+const NOMES_STATUS = {
+  RASCUNHO: "Rascunho",
+  AGUARDANDO_INQUILINO: "Aguardando inquilino",
+  PENDENTE_DADOS: "Pendente de dados",
+  AGUARDANDO_REVISAO: "Aguardando revisão",
+  AGUARDANDO_ASSINATURAS: "Aguardando assinaturas",
+  CONCLUIDO: "Concluído",
+  CADASTRO_RECUSADO: "Cadastro recusado",
+  CANCELADO: "Cancelado",
+};
+
 function ConteudoAnaliseCadastral() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,33 +71,33 @@ function ConteudoAnaliseCadastral() {
   const [carregandoPdf, setCarregandoPdf] = useState(false);
 
   const carregarPreviaPdf = useCallback(async () => {
-  if (!contratoId) return;
-  const token = sessionStorage.getItem("token");
-  if (!token) return;
+    if (!contratoId) return;
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
 
-  setCarregandoPdf(true);
-  try {
-    const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/pdf`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    setCarregandoPdf(true);
+    try {
+      const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/pdf`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!resposta.ok) return;
+      if (!resposta.ok) return;
 
-    const blob = await resposta.blob();
-    const novaUrl = URL.createObjectURL(blob);
+      const blob = await resposta.blob();
+      const novaUrl = URL.createObjectURL(blob);
 
-    setPdfUrl((urlAnterior) => {
-      if (urlAnterior) URL.revokeObjectURL(urlAnterior);
-      return novaUrl;
-    });
-  } catch (err) {
-    console.error("Erro ao carregar prévia do PDF:", err);
-  } finally {
-    setCarregandoPdf(false);
-  }
-}, [contratoId, apiUrl]);
+      setPdfUrl((urlAnterior) => {
+        if (urlAnterior) URL.revokeObjectURL(urlAnterior);
+        return novaUrl;
+      });
+    } catch (err) {
+      console.error("Erro ao carregar prévia do PDF:", err);
+    } finally {
+      setCarregandoPdf(false);
+    }
+  }, [contratoId, apiUrl]);
 
   useEffect(() => {
     async function buscarContrato() {
@@ -138,44 +171,44 @@ function ConteudoAnaliseCadastral() {
   }
 
   async function abrirDocumento(nomeArquivo) {
-  try {
-    const token = sessionStorage.getItem("token");
-    const resposta = await fetch(
-      `${apiUrl}/contratos/${contratoId}/documentos/${encodeURIComponent(
-        nomeArquivo,
-      )}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
+    try {
+      const token = sessionStorage.getItem("token");
+      const resposta = await fetch(
+        `${apiUrl}/contratos/${contratoId}/documentos/${encodeURIComponent(
+          nomeArquivo,
+        )}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
-    if (!resposta.ok) {
+      if (!resposta.ok) {
+        setErro(true);
+        setMensagem("Não foi possível abrir o documento.");
+        return;
+      }
+
+      const contentType = resposta.headers.get("content-type") || "";
+      const extensao = contentType.includes("png")
+        ? ".png"
+        : contentType.includes("jpeg") || contentType.includes("jpg")
+          ? ".jpg"
+          : ".pdf";
+
+      const blob = await resposta.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `documento-inquilino${extensao}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
       setErro(true);
-      setMensagem("Não foi possível abrir o documento.");
-      return;
+      setMensagem("Erro ao carregar documento.");
     }
-
-    const contentType = resposta.headers.get("content-type") || "";
-    const extensao = contentType.includes("png")
-      ? ".png"
-      : contentType.includes("jpeg") || contentType.includes("jpg")
-        ? ".jpg"
-        : ".pdf";
-
-    const blob = await resposta.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `documento-inquilino${extensao}`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch {
-    setErro(true);
-    setMensagem("Erro ao carregar documento.");
   }
-}
 
   async function enviarAnaliseCadastral() {
     if (enviandoParecer) return;
@@ -364,7 +397,8 @@ function ConteudoAnaliseCadastral() {
               </h1>
               {contrato && (
                 <p className="text-xs text-slate-500">
-                  Contrato #{contrato.id} • Status: {contrato.status}
+                  Contrato #{contrato.id} • Status:{" "}
+                  {NOMES_STATUS[contrato.status] || contrato.status}
                 </p>
               )}
             </div>
@@ -537,7 +571,8 @@ function ConteudoAnaliseCadastral() {
                   Garantia Locatícia
                 </h2>
                 <p>
-                  <strong>Modalidade:</strong> {contrato.garantia}
+                  <strong>Modalidade:</strong>{" "}
+                  {NOMES_GARANTIA[contrato.garantia] || contrato.garantia}
                 </p>
 
                 {contrato.garantia === "fiador" && (
@@ -575,10 +610,19 @@ function ConteudoAnaliseCadastral() {
                 )}
 
                 {contrato.garantia === "caucao" && (
-                  <p>
-                    <strong>Valor da caução:</strong>{" "}
-                    {formatarValor(contrato.valor_caucao)}
-                  </p>
+                  <div className="space-y-1.5 pt-1">
+                    {contrato.tipo_caucao && (
+                      <p>
+                        <strong>Modalidade da caução:</strong>{" "}
+                        {NOMES_TIPO_CAUCAO[contrato.tipo_caucao] ||
+                          contrato.tipo_caucao}
+                      </p>
+                    )}
+                    <p>
+                      <strong>Valor da caução:</strong>{" "}
+                      {formatarValor(contrato.valor_caucao)}
+                    </p>
+                  </div>
                 )}
 
                 {contrato.garantia === "nenhuma" && (
@@ -607,7 +651,9 @@ function ConteudoAnaliseCadastral() {
                 <p>
                   <strong>Despesas incluídas:</strong>{" "}
                   {contrato.despesas_inclusas?.length
-                    ? contrato.despesas_inclusas.join(", ")
+                    ? contrato.despesas_inclusas
+                        .map((item) => NOMES_DESPESAS[item] || item)
+                        .join(", ")
                     : "Nenhuma"}
                 </p>
                 <p>
@@ -687,7 +733,6 @@ function ConteudoAnaliseCadastral() {
                             : "Confirmar Recusa do Cadastro"}
                     </button>
                   </div>
-                  
                 </>
               ) : (
                 <div className="space-y-1.5">
@@ -700,7 +745,9 @@ function ConteudoAnaliseCadastral() {
                           : "text-teal font-bold"
                       }
                     >
-                      {contrato.status_analise_cadastral || "APROVADA"}
+                      {contrato.status_analise_cadastral === "RECUSADA"
+                        ? "Recusada"
+                        : "Aprovada"}
                     </span>
                   </p>
                   {contrato.justificativa_analise && (

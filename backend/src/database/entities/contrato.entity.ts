@@ -188,5 +188,12 @@ pdf_assinado_path: string | null;
     nullable: true,
   })
   data_assinatura_final: Date | null;
+
+  @Column({
+    name: 'data_emissao_pdf',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  data_emissao_pdf: Date | null;
 }
 

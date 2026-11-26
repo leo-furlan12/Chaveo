@@ -410,8 +410,14 @@ pdf.text(
 
 pdf.moveDown(1.5);
 
-// local e data da assinatura
-const dataAtual = new Date().toLocaleDateString('pt-BR', {
+// local e data da assinatura (mantém a data da primeira emissão do documento)
+const dataBase = contrato.data_emissao_pdf
+  ? new Date(contrato.data_emissao_pdf)
+  : contrato.data_analise_cadastral
+    ? new Date(contrato.data_analise_cadastral)
+    : new Date();
+
+const dataDocumento = dataBase.toLocaleDateString('pt-BR', {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
@@ -419,7 +425,17 @@ const dataAtual = new Date().toLocaleDateString('pt-BR', {
 });
 
 pdf.text(
-  `${contrato.imovel.cidade}/${contrato.imovel.estado}, ${dataAtual}.`,
+  `${contrato.imovel.cidade}/${contrato.imovel.estado}, ${dataDocumento}.`,
+  { align: 'center' },
+);
+
+pdf.text(
+  `${contrato.imovel.cidade}/${contrato.imovel.estado}, ${dataDocumento}.`,
+  { align: 'center' },
+);
+
+pdf.text(
+  `${contrato.imovel.cidade}/${contrato.imovel.estado}, ${dataBase}.`,
   { align: 'center' },
 );
 

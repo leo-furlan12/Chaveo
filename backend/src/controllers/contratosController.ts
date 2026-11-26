@@ -1305,12 +1305,13 @@ export class ContratosController {
       throw new ForbiddenException('Você não pode acessar este contrato');
     }
 
-    // impede gerar um contrato que ainda nao foi aprovado
+    // permite gerar a prévia na revisão e o PDF final após aprovação
     if (
+      contrato.status !== 'AGUARDANDO_REVISAO' &&
       contrato.status !== 'AGUARDANDO_ASSINATURAS' &&
       contrato.status !== 'CONCLUIDO'
     ) {
-      throw new BadRequestException('Este contrato ainda não foi aprovado');
+      throw new BadRequestException('Este contrato ainda não está disponível para geração de PDF');
     }
 
     // verifica se existem os dados necessarios
@@ -1318,6 +1319,14 @@ export class ContratosController {
       throw new BadRequestException('Faltam dados para gerar o contrato');
     }
 
+    // fixa a data da primeira emissão (prévia) para não mudar nos dias seguintes
+    if (!contrato.data_emissao_pdf) {
+      contrato.data_emissao_pdf = new Date();
+      await this.contratoRepository.update(
+        { id },
+        { data_emissao_pdf: contrato.data_emissao_pdf },
+      );
+    }
 
     // configura a resposta para baixar o pdf
     response.setHeader('Content-Type', 'application/pdf');
@@ -1337,7 +1346,6 @@ export class ContratosController {
 
     // finaliza o arquivo
     pdf.end();
-
   }
   // inquilino envia renda, ocupação e documentos comprobatórios
   @Post(':id/ficha-cadastral')

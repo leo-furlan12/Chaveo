@@ -374,7 +374,27 @@ async function baixarDocumentoContrato(endpoint, nomeArquivo) {
     setMensagem("Erro ao baixar o arquivo.");
   }
 }
+const NOMES_DESPESAS = {
+  agua: "Água",
+  luz: "Luz",
+  internet: "Internet",
+  gas: "Gás",
+  condominio: "Condomínio",
+  iptu: "IPTU",
+};
 
+const NOMES_GARANTIA = {
+  fiador: "Fiador",
+  seguro: "Seguro-fiança",
+  caucao: "Caução",
+  nenhuma: "Sem garantia",
+};
+
+const NOMES_TIPO_CAUCAO = {
+  "3": "3 aluguéis",
+  "2": "2 aluguéis",
+  negociado: "Valor negociado",
+};
 
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
@@ -654,7 +674,7 @@ async function baixarDocumentoContrato(endpoint, nomeArquivo) {
                 <section className="rounded-xl border border-slate-200 p-5 space-y-4">
                   <div className="flex items-center justify-between border-b pb-2">
                     <h2 className="font-bold text-lg">
-                      2. Garantia Locatícia ({contrato.garantia})
+                      2. Garantia Locatícia ({NOMES_GARANTIA[contrato.garantia] || contrato.garantia})
                     </h2>
                     {contrato.garantia === "fiador" && fiadorSalvo && (
                       <span className="inline-flex items-center gap-1 text-xs font-bold text-teal">
