@@ -81,34 +81,9 @@ async criar(@Body() dados: any, @Req() req: Request, @Res() res: Response) {
   }
 }
 
-/*   @Get(':id')
-  async buscarPorId(@Param('id') id: string, @Res() res: Response) {
-    try {
-      // busca o imóvel pelo id
-      const imovel = await this.imovelRepository.findOne({
-        where: { id: id },
-      });
-
-      // verifica se o imóvel existe
-      if (!imovel) {
-
-        return res.status(HttpStatus.NOT_FOUND).json({
-          mensagem: 'Imóvel não encontrado.',
-        });
-      }
-      // retorna os dados do imóvel
-      return res.status(HttpStatus.OK).json(imovel);
-    } catch (erro) {
-      console.error('Erro ao buscar imóvel:', erro);
-
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        mensagem: 'Erro ao buscar imóvel.',
-      });
-    }
-  } */
 
   
-    // 4. Rota PATCH para editar o imóvel (COM REGRA DE NEGÓCIO)
+    // rota PATCH para editar o imóvel (COM REGRA DE NEGÓCIO)
   @Patch(':id')
   async atualizar(
     @Param('id') id: string,

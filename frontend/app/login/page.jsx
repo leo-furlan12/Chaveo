@@ -1,7 +1,6 @@
 "use client"; //NEXT.JS
 
 import Logo from "../components/Logo";
-import Checkbox from "../components/Checkbox";
 import Button from "../components/Button";
 import { lerPerfisDoToken, listarAreas } from "../components/TrocarPerfil";
 import Link from "next/link";
@@ -19,9 +18,10 @@ function ConteudoLogin() {
   const [erro, setErro] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [areas, setAreas] = useState([]);
-  const destinoSolicitado = redirect && /^\/(?![\/\\])/.test(redirect) && !/[\\\x00-\x20]/.test(redirect)
-    ? redirect
-    : null;
+  const destinoSolicitado =
+    redirect && /^\/(?![\/\\])/.test(redirect) && !/[\\\x00-\x20]/.test(redirect)
+      ? redirect
+      : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -58,7 +58,8 @@ function ConteudoLogin() {
       );
 
       const veioDoConvite = destinoSolicitado?.startsWith("/ConviteContrato?");
-      const acabouDeAceitarConvite = searchParams.get("origem") === "convite" &&
+      const acabouDeAceitarConvite =
+        searchParams.get("origem") === "convite" &&
         destinoSolicitado?.startsWith("/CompletarContrato?");
 
       if (veioDoConvite || acabouDeAceitarConvite) {
@@ -69,31 +70,11 @@ function ConteudoLogin() {
       if (areasDisponiveis.length > 1) {
         setAreas(areasDisponiveis);
         return;
-      let payloadToken = {};
-      try {
-        if (tokenRecebido) {
-          payloadToken = JSON.parse(atob(tokenRecebido.split(".")[1]));
-        }
-      } catch {}
-
-      const origemPerfis =
-        dados?.perfis || dados?.usuario?.perfis || payloadToken?.perfis || [];
-
-      const perfis = Array.isArray(origemPerfis)
-        ? origemPerfis.map((p) => String(p).toUpperCase())
-        : [String(origemPerfis).toUpperCase()];
-
-      if (redirect && redirect.startsWith("/")) {
-        router.replace(redirect);
-      } else if (perfis.includes("INQUILINO")) {
-        router.replace("/dashboardInquilino");
-      } else if (perfis.includes("PROPRIETARIO")) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/dashboardteste");
       }
 
-      router.replace(destinoSolicitado || areasDisponiveis[0]?.href || "/dashboardteste");
+      router.replace(
+        destinoSolicitado || areasDisponiveis[0]?.href || "/dashboardteste",
+      );
     } catch {
       setErro(true);
       setMensagem("Não foi possível conectar ao servidor.");
@@ -105,8 +86,16 @@ function ConteudoLogin() {
   if (areas.length > 1) {
     return (
       <main className="grid min-h-screen place-items-center bg-ink p-4 text-paper">
-        <section aria-labelledby="escolher-perfil" className="w-full max-w-md rounded-2xl border border-teal/30 bg-ink-soft p-6 sm:p-8">
-          <h1 id="escolher-perfil" tabIndex={-1} ref={(titulo) => titulo?.focus()} className="text-2xl font-semibold">
+        <section
+          aria-labelledby="escolher-perfil"
+          className="w-full max-w-md rounded-2xl border border-teal/30 bg-ink-soft p-6 sm:p-8"
+        >
+          <h1
+            id="escolher-perfil"
+            tabIndex={-1}
+            ref={(titulo) => titulo?.focus()}
+            className="text-2xl font-semibold"
+          >
             Com qual perfil você quer entrar?
           </h1>
           <div className="mt-6 grid gap-3">
@@ -135,6 +124,7 @@ function ConteudoLogin() {
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   }
+
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-paper flex flex-col">
       <Link
@@ -184,8 +174,6 @@ function ConteudoLogin() {
                 placeholder="Insira sua senha"
               />
             </div>
-
-           
 
             <div className="col-span-2 text-center">
               <Button
