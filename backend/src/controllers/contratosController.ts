@@ -491,18 +491,213 @@ export class ContratosController {
     }));
   }
 
+  private montarNotificacoesContratos(
+    contratos: Contrato[],
+    usuarioId: string,
+  ) {
+    const hojeStr = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    const calcularDiasParaFim = (dataFim?: string | null) => {
+      if (!dataFim) return null;
+      const alvo = String(dataFim).slice(0, 10);
+      return Math.round((Date.parse(alvo) - Date.parse(hojeStr)) / 86400000);
+    };
+
+    return contratos
+      .filter(
+        (c) => c.status !== 'RASCUNHO' && c.status !== 'AGUARDANDO_INQUILINO',
+      )
+      .map((contrato) => {
+        const ehLocador = String(contrato.locador_id) === usuarioId;
+        const diasParaFim = calcularDiasParaFim(contrato.data_fim);
+        const pertoDoFim =
+          contrato.status === 'CONCLUIDO' &&
+          diasParaFim !== null &&
+          diasParaFim <= 60;
+
+        let tipo = 'STATUS';
+        let titulo = 'Atualização do contrato';
+        let descricao = '';
+
+        if (pertoDoFim) {
+          tipo = diasParaFim! < 0 ? 'ENCERRADO' : 'PERTO_DO_FIM';
+          titulo =
+            diasParaFim! < 0
+              ? 'Prazo do contrato encerrado'
+              : diasParaFim === 0
+                ? 'Contrato encerra hoje'
+                : `Contrato encerra em ${diasParaFim} ${diasParaFim === 1 ? 'dia' : 'dias'}`;
+          descricao =
+            diasParaFim! < 0
+              ? 'A vigência inicial chegou ao fim. Informe se há interesse em renovar.'
+              : 'O término da vigência está próximo. Deseja renovar este contrato?';
+        } else {
+          switch (contrato.status) {
+            case 'PENDENTE_DADOS':
+              titulo = ehLocador
+                ? 'Aguardando preenchimento pelo inquilino'
+                : 'Complete seus dados e documentos';
+              descricao = ehLocador
+                ? 'O inquilino aceitou o convite e está preenchendo a ficha cadastral.'
+                : 'Envie sua ficha cadastral, documentos e dados da garantia para análise.';
+              break;
+            case 'AGUARDANDO_REVISAO':
+              titulo = ehLocador
+                ? 'Ficha cadastral pronta para revisão'
+                : 'Cadastro em análise pelo proprietário';
+              descricao = ehLocador
+                ? 'O inquilino concluiu o envio. Revise os documentos e aprove ou recuse.'
+                : 'Seus dados foram enviados e aguardam validação do proprietário.';
+              break;
+            case 'AGUARDANDO_ASSINATURAS':
+              titulo = 'Contrato liberado para assinatura';
+              descricao = ehLocador
+                ? 'Análise aprovada. Faça o download do PDF e envie o contrato assinado.'
+                : 'Seu cadastro foi aprovado! O contrato está na etapa de assinatura.';
+              break;
+            case 'CADASTRO_RECUSADO':
+              tipo = 'RECUSADO';
+              titulo = 'Análise cadastral recusada';
+              descricao =
+                contrato.justificativa_analise ||
+                'O cadastro não foi aprovado na etapa de revisão.';
+              break;
+            case 'CANCELADO':
+              tipo = 'CANCELADO';
+              titulo = 'Contrato cancelado';
+              descricao = 'Este processo de locação foi cancelado.';
+              break;
+            case 'CONCLUIDO':
+            default:
+              titulo = 'Contrato ativo';
+              descricao = 'Contrato assinado e vigente.';
+              break;
+          }
+        }
+
+        return {
+          contrato_id: contrato.id,
+          papel: ehLocador ? 'PROPRIETARIO' : 'INQUILINO',
+          status: contrato.status,
+          tipo,
+          titulo,
+          descricao,
+          data_inicio: contrato.data_inicio,
+          data_fim: contrato.data_fim,
+          dias_para_fim: diasParaFim,
+          perto_do_fim: pertoDoFim,
+          interesse_renovacao: contrato.interesse_renovacao || null,
+          pode_responder_renovacao: !ehLocador && pertoDoFim,
+          imovel: contrato.imovel
+            ? {
+                id: contrato.imovel.id,
+                logradouro: contrato.imovel.logradouro,
+                numero: contrato.imovel.numero,
+                cidade: contrato.imovel.cidade,
+              }
+            : null,
+        };
+      });
+  }
+
   @Get('minhas-notificacoes')
   @UseGuards(AuthGuard)
   async listarMinhasNotificacoes(@Req() request: Request) {
     const usuarioId = String((request as any).user.sub);
-    const [convites, boletos] = await Promise.all([
+
+    const [convitesInquilino, contratosUsuario, boletos] = await Promise.all([
       this.listarMeusConvites(request),
-      this.asaasCobrancaService.listarBoletosDoInquilino(usuarioId),
+      this.contratoRepository.find({
+        where: [{ locatario_id: usuarioId }, { locador_id: usuarioId }],
+        relations: { imovel: true, locatario: true },
+        order: { id: 'DESC' },
+      }),
+      this.asaasCobrancaService
+        .listarBoletosDoInquilino(usuarioId)
+        .catch(() => []),
     ]);
 
-    return { convites, boletos };
+    const convitesProprietario = contratosUsuario
+      .filter(
+        (c) => String(c.locador_id) === usuarioId && c.status !== 'RASCUNHO',
+      )
+      .map((c) => ({
+        contrato_id: c.id,
+        papel: 'PROPRIETARIO',
+        status:
+          c.status === 'CANCELADO'
+            ? 'CANCELADO'
+            : c.locatario_id !== null
+              ? 'RESPONDIDO'
+              : 'AGUARDANDO_RESPOSTA',
+        convite_token: null,
+        inquilino_nome: c.locatario?.nome || null,
+        imovel: c.imovel
+          ? {
+              id: c.imovel.id,
+              logradouro: c.imovel.logradouro,
+              numero: c.imovel.numero,
+              cidade: c.imovel.cidade,
+            }
+          : null,
+      }));
+
+    const contratos = this.montarNotificacoesContratos(
+      contratosUsuario,
+      usuarioId,
+    );
+
+    return {
+      convites: [...convitesInquilino, ...convitesProprietario],
+      contratos,
+      boletos,
+    };
   }
 
+  @Patch(':id/renovacao')
+  @UseGuards(AuthGuard)
+  async responderRenovacao(
+    @Param('id') id: string,
+    @Body() body: { deseja_renovar?: boolean },
+    @Req() request: Request,
+  ) {
+    const usuarioId = String((request as any).user.sub);
+
+    if (typeof body?.deseja_renovar !== 'boolean') {
+      throw new BadRequestException('Informe se deseja renovar o contrato.');
+    }
+
+    const contrato = await this.contratoRepository.findOne({ where: { id } });
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (
+      String(contrato.locatario_id) !== usuarioId &&
+      String(contrato.locador_id) !== usuarioId
+    ) {
+      throw new ForbiddenException('Você não tem permissão neste contrato');
+    }
+
+    contrato.interesse_renovacao = body.deseja_renovar ? 'SIM' : 'NAO';
+    await this.contratoRepository.save(contrato);
+
+    return {
+      mensagem: body.deseja_renovar
+        ? 'Interesse em renovação registrado com sucesso.'
+        : 'Opção por não renovar registrada.',
+      interesse_renovacao: contrato.interesse_renovacao,
+    };
+  }
+
+
+  
 //consultar o proximo passo
   @Get('convite/:token/destino')
   async consultarDestinoConvite(@Param('token') token: string) {

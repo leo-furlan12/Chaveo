@@ -195,5 +195,13 @@ pdf_assinado_path: string | null;
     nullable: true,
   })
   data_emissao_pdf: Date | null;
+
+  @Column({
+    name: 'interesse_renovacao',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  interesse_renovacao: 'SIM' | 'NAO' | null;
 }
 
