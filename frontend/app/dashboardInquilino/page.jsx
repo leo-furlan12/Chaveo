@@ -201,7 +201,9 @@ export default function DashboardInquilino() {
     const porImovel = new Map();
 
     contratos.forEach((contrato) => {
-      const chaveImovel = String(contrato.imovel?.id || `sem-imovel-${contrato.id}`);
+      const chaveImovel = String(
+        contrato.imovel?.id || `sem-imovel-${contrato.id}`,
+      );
       const registro = porImovel.get(chaveImovel);
 
       if (registro) {
@@ -242,10 +244,7 @@ export default function DashboardInquilino() {
         fetch(`${apiBaseUrl}/contratos/meus`, { headers, cache: "no-store" }),
       ]);
 
-      if (
-        perfilResposta.status === 401 ||
-        contratosResposta.status === 401
-      ) {
+      if (perfilResposta.status === 401 || contratosResposta.status === 401) {
         sessionStorage.removeItem("token");
         router.replace("/login");
         return;
@@ -262,11 +261,19 @@ export default function DashboardInquilino() {
             recurso,
             url: resposta.url,
             status: resposta.status,
-            corpo: (await resposta.clone().text().catch(() => "")).slice(0, 1000),
+            corpo: (
+              await resposta
+                .clone()
+                .text()
+                .catch(() => "")
+            ).slice(0, 1000),
           })),
         );
 
-        console.error("Falha nas chamadas do dashboard do inquilino:", diagnosticos);
+        console.error(
+          "Falha nas chamadas do dashboard do inquilino:",
+          diagnosticos,
+        );
         throw new Error("Não foi possível carregar os dados da locação.");
       }
 
@@ -277,7 +284,8 @@ export default function DashboardInquilino() {
     } catch (error) {
       console.error("Erro ao carregar dashboard do inquilino:", error);
       const mensagem =
-        error instanceof TypeError && error.message.toLowerCase().includes("fetch")
+        error instanceof TypeError &&
+        error.message.toLowerCase().includes("fetch")
           ? `Não foi possível conectar à API . Verifique se o backend está em execução.`
           : error.message || "Não foi possível carregar sua locação.";
       setErro(mensagem);
@@ -297,6 +305,29 @@ export default function DashboardInquilino() {
 
   const alternarDetalhe = (chave) => {
     setDetalheAberto((atual) => (atual === chave ? null : chave));
+  };
+  const irParaMeuImovel = (e) => {
+    e.preventDefault();
+    if (!contratoAtual) return;
+
+    const chaveImovel = `imovel-${contratoAtual.imovel?.id || contratoAtual.id}`;
+    setDetalheAberto(chaveImovel);
+    document.getElementById("imoveis")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const irParaMeuContrato = (e) => {
+    e.preventDefault();
+    if (!contratoAtual) return;
+
+    if (
+      contratoAtual.status === "AGUARDANDO_INQUILINO" &&
+      contratoAtual.convite_token
+    ) {
+      router.push(`/ConviteContrato?token=${contratoAtual.convite_token}`);
+      return;
+    }
+
+    router.push(`/CompletarContrato?id=${contratoAtual.id}`);
   };
 
   // Busca o histórico financeiro do contrato e mantém a lista em memória para reabrir o painel sem nova chamada.
@@ -504,11 +535,19 @@ export default function DashboardInquilino() {
               <Building2 size={18} />
               Início
             </a>
-            <a className="tenant-nav-item" href="#imoveis">
+            <a
+              className="tenant-nav-item"
+              href="#imoveis"
+              onClick={irParaMeuImovel}
+            >
               <MapPin size={18} />
               Meu imóvel
             </a>
-            <a className="tenant-nav-item" href="#contratos">
+            <a
+              className="tenant-nav-item"
+              href="#contratos"
+              onClick={irParaMeuContrato}
+            >
               <FileText size={18} />
               Meu contrato
             </a>
@@ -523,7 +562,12 @@ export default function DashboardInquilino() {
             <strong>{usuario?.nome || "Inquilino"}</strong>
             <span>Conta ativa</span>
           </div>
-          <button type="button" onClick={sair} className="tenant-logout" title="Sair">
+          <button
+            type="button"
+            onClick={sair}
+            className="tenant-logout"
+            title="Sair"
+          >
             <LogOut size={18} />
           </button>
         </div>
@@ -568,7 +612,10 @@ export default function DashboardInquilino() {
           </section>
         ) : (
           <>
-            <section className="tenant-summary-grid" aria-label="Resumo da locação">
+            <section
+              className="tenant-summary-grid"
+              aria-label="Resumo da locação"
+            >
               <div className="tenant-summary-card">
                 <span>Aluguel mensal mais recente</span>
                 <strong>{formatarMoeda(contratoAtual.valor_aluguel)}</strong>
@@ -586,77 +633,100 @@ export default function DashboardInquilino() {
               </div>
             </section>
 
-            <section className="tenant-records" id="imoveis" aria-label="Imóveis e contratos do inquilino">
+            <section
+              className="tenant-records"
+              id="imoveis"
+              aria-label="Imóveis e contratos do inquilino"
+            >
               <header className="tenant-records-heading">
                 <div id="contratos">
                   <p className="tenant-eyebrow">Sua locação</p>
                   <h2>Imóveis e contratos</h2>
-                  <p>Veja os imóveis vinculados às suas locações e os dados de cada contrato.</p>
+                  <p>
+                    Veja os imóveis vinculados às suas locações e os dados de
+                    cada contrato.
+                  </p>
                 </div>
                 <span className="tenant-record-count">
-                  {imoveisLocatario.length} {imoveisLocatario.length === 1 ? "imóvel" : "imóveis"}
+                  {imoveisLocatario.length}{" "}
+                  {imoveisLocatario.length === 1 ? "imóvel" : "imóveis"}
                 </span>
               </header>
 
               <div className="tenant-record-list">
-                {imoveisLocatario.map(({ imovel, contratos: contratosDoImovel }) => {
-                  const chaveImovel = `imovel-${imovel?.id || contratosDoImovel[0].id}`;
-                  const imovelAberto = detalheAberto === chaveImovel;
+                {imoveisLocatario.map(
+                  ({ imovel, contratos: contratosDoImovel }) => {
+                    const chaveImovel = `imovel-${imovel?.id || contratosDoImovel[0].id}`;
+                    const imovelAberto = detalheAberto === chaveImovel;
 
-                  return (
-                    <article className="tenant-record-card" key={chaveImovel}>
-                      <div className="tenant-record-property" id={chaveImovel}>
-                        <div className="tenant-record-property-icon">
-                          <Building2 size={24} />
-                        </div>
-                        <div className="tenant-record-property-info">
-                          <p className="tenant-property-type">{imovel?.tipo || "Imóvel residencial"}</p>
-                          <h3>
-                            {imovel?.logradouro || "Endereço não informado"}, {imovel?.numero || "s/n"}
-                          </h3>
-                          <p className="tenant-muted">
-                            {imovel?.bairro || "Bairro não informado"} · {imovel?.cidade || "Cidade não informada"}/{imovel?.estado || "--"}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="tenant-more-button tenant-record-toggle"
-                          onClick={() => alternarDetalhe(chaveImovel)}
-                          aria-expanded={imovelAberto}
+                    return (
+                      <article className="tenant-record-card" key={chaveImovel}>
+                        <div
+                          className="tenant-record-property"
+                          id={chaveImovel}
                         >
-                          {imovelAberto ? "Ocultar imóvel" : "Ver mais do imóvel"}
-                          {imovelAberto ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
-                        </button>
-                      </div>
+                          <div className="tenant-record-property-icon">
+                            <Building2 size={24} />
+                          </div>
+                          <div className="tenant-record-property-info">
+                            <p className="tenant-property-type">
+                              {imovel?.tipo || "Imóvel residencial"}
+                            </p>
+                            <h3>
+                              {imovel?.logradouro || "Endereço não informado"},{" "}
+                              {imovel?.numero || "s/n"}
+                            </h3>
+                            <p className="tenant-muted">
+                              {imovel?.bairro || "Bairro não informado"} ·{" "}
+                              {imovel?.cidade || "Cidade não informada"}/
+                              {imovel?.estado || "--"}
+                            </p>
+                          </div>
 
-                      {imovelAberto && (
-                        <div className="tenant-detail-list tenant-property-details">
-                          <div><span>CEP</span><strong>{imovel?.cep || "Não informado"}</strong></div>
-                          <div><span>Complemento</span><strong>{imovel?.complemento || "Não informado"}</strong></div>
-                          <div><span>Tipo</span><strong>{imovel?.tipo || "Não informado"}</strong></div>
-                          <div><span>Status</span><strong>{imovel?.status || "Não informado"}</strong></div>
-                          <div><span>Proprietário</span><strong>{imovel?.proprietario?.nome || "Não informado"}</strong></div>
-                          <div>
-                            <span>Telefone</span>
-                            <strong>
-                              {imovel?.proprietario?.telefone ? (
-                                <a href={`tel:${imovel.proprietario.telefone}`}>
-                                  {imovel.proprietario.telefone}
-                                </a>
-                              ) : "Não informado"}
-                            </strong>
-                          </div>
-                          <div>
-                            <span>E-mail</span>
-                            <strong>
-                              {imovel?.proprietario?.email ? (
-                                <a href={`mailto:${imovel.proprietario.email}`}>
-                                  {imovel.proprietario.email}
-                                </a>
-                              ) : "Não informado"}
-                            </strong>
-                          </div>
+                          <button
+                            type="button"
+                            className="tenant-more-button tenant-record-toggle"
+                            onClick={() => alternarDetalhe(chaveImovel)}
+                            aria-expanded={imovelAberto}
+                          >
+                            {imovelAberto
+                              ? "Ocultar imóvel"
+                              : "Ver mais do imóvel"}
+                            {imovelAberto ? (
+                              <ChevronUp size={17} />
+                            ) : (
+                              <ChevronDown size={17} />
+                            )}
+                          </button>
                         </div>
+
+                        {imovelAberto && (
+                          <div className="tenant-detail-list tenant-property-details">
+                            <div>
+                              <span>CEP</span>
+                              <strong>{imovel?.cep || "Não informado"}</strong>
+                            </div>
+                            <div>
+                              <span>Complemento</span>
+                              <strong>
+                                {imovel?.complemento || "Não informado"}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Tipo</span>
+                              <strong>{imovel?.tipo || "Não informado"}</strong>
+                            </div>
+                            <div>
+                              <span>Status</span>
+                              <strong>
+                                {imovel?.status || "Não informado"}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>Proprietário</span>
+                              <strong>
+                                {imovel?.proprietario?.nome || "Não informado"}
+                              </strong>
                       )}
 
                       <div className="tenant-record-contracts">
@@ -914,12 +984,149 @@ export default function DashboardInquilino() {
                                 </>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </article>
-                  );
-                })}
+                            <div>
+                              <span>Telefone</span>
+                              <strong>
+                                {imovel?.proprietario?.telefone ? (
+                                  <a
+                                    href={`tel:${imovel.proprietario.telefone}`}
+                                  >
+                                    {imovel.proprietario.telefone}
+                                  </a>
+                                ) : (
+                                  "Não informado"
+                                )}
+                              </strong>
+                            </div>
+                            <div>
+                              <span>E-mail</span>
+                              <strong>
+                                {imovel?.proprietario?.email ? (
+                                  <a
+                                    href={`mailto:${imovel.proprietario.email}`}
+                                  >
+                                    {imovel.proprietario.email}
+                                  </a>
+                                ) : (
+                                  "Não informado"
+                                )}
+                              </strong>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="tenant-record-contracts">
+                          <h4>
+                            {contratosDoImovel.length === 1
+                              ? "Contrato vinculado"
+                              : `${contratosDoImovel.length} contratos vinculados`}
+                          </h4>
+                          {contratosDoImovel.map((contrato) => {
+                            const chaveContrato = `contrato-${contrato.id}`;
+                            const contratoAberto =
+                              detalheAberto === chaveContrato;
+                            const statusContrato = normalizarStatus(
+                              contrato.status,
+                            );
+
+                            return (
+                              <div
+                                className="tenant-record-contract"
+                                key={contrato.id}
+                              >
+                                <div className="tenant-record-contract-summary">
+                                  <div>
+                                    <span className="tenant-record-contract-label">
+                                      Contrato #{contrato.id}
+                                    </span>
+                                    <span
+                                      className={`tenant-contract-status ${statusContrato.classe}`}
+                                    >
+                                      <span />
+                                      {statusContrato.texto}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      className="tenant-more-button"
+                                      onClick={() => {
+                                        if (
+                                          contrato.status ===
+                                            "AGUARDANDO_INQUILINO" &&
+                                          contrato.convite_token
+                                        ) {
+                                          router.push(
+                                            `/ConviteContrato?token=${contrato.convite_token}`,
+                                          );
+                                        } else {
+                                          router.push(
+                                            `/CompletarContrato?id=${contrato.id}`,
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Acessar contrato
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="tenant-more-button tenant-record-toggle"
+                                      onClick={() =>
+                                        alternarDetalhe(chaveContrato)
+                                      }
+                                      aria-expanded={contratoAberto}
+                                    >
+                                      {contratoAberto
+                                        ? "Ocultar contrato"
+                                        : "Ver mais do contrato"}
+                                      {contratoAberto ? (
+                                        <ChevronUp size={17} />
+                                      ) : (
+                                        <ChevronDown size={17} />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {contratoAberto && (
+                                  <div className="tenant-detail-list">
+                                    <div>
+                                      <span>Aluguel mensal</span>
+                                      <strong>
+                                        {formatarMoeda(contrato.valor_aluguel)}
+                                      </strong>
+                                    </div>
+                                    <div>
+                                      <span>Vencimento</span>
+                                      <strong>
+                                        Dia{" "}
+                                        {contrato.dia_vencimento ||
+                                          "Não informado"}
+                                      </strong>
+                                    </div>
+                                    <div>
+                                      <span>Início</span>
+                                      <strong>
+                                        {formatarData(contrato.data_inicio)}
+                                      </strong>
+                                    </div>
+                                    <div>
+                                      <span>Término</span>
+                                      <strong>
+                                        {formatarData(contrato.data_fim)}
+                                      </strong>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </article>
+                    );
+                  },
+                )}
               </div>
             </section>
           </>

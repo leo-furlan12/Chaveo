@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Upload, FileCheck2, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Upload, FileCheck2, CheckCircle2 } from "lucide-react"
 
 function ConteudoCompletarContrato() {
   const router = useRouter();
@@ -114,17 +115,23 @@ function ConteudoCompletarContrato() {
       return;
     }
 
-    const temDocsAnteriores =
-      Array.isArray(contrato?.documentos_locatario) &&
-      contrato.documentos_locatario.length > 0;
+    const qtdDocsAnteriores = Array.isArray(contrato?.documentos_locatario)
+      ? contrato.documentos_locatario.length
+      : 0;
 
-    if (!docIdentidade && !docRenda && !docResidencia && !temDocsAnteriores) {
+    if (
+      qtdDocsAnteriores < 3 &&
+      (!docIdentidade || !docRenda || !docResidencia)
+    ) {
       setErro(true);
-      setMensagem("Anexe pelo menos um documento comprobatório.");
+      setMensagem(
+        "Anexe todos os 3 documentos obrigatórios (Identidade, Comprovante de Renda e Comprovante de Residência) antes de salvar."
+      );
       return;
     }
 
     setSalvando(true);
+
     try {
       const token = sessionStorage.getItem("token");
       const formData = new FormData();
@@ -186,6 +193,19 @@ function ConteudoCompletarContrato() {
 
   async function salvarFiador() {
     if (salvando) return;
+
+    if (
+      !fiadorNome.trim() ||
+      fiadorCpf.replace(/\D/g, "").length !== 11 ||
+      !fiadorQualificacao.trim() ||
+      !fiadorImovel.trim()
+    ) {
+      setErro(true);
+      setMensagem(
+        "Preencha todos os dados do fiador (nome, CPF com 11 dígitos, qualificação e imóvel) antes de salvar."
+      );
+      return;
+    }
 
     setSalvando(true);
     setErro(false);
@@ -358,6 +378,15 @@ async function baixarDocumentoContrato(endpoint, nomeArquivo) {
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
       <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-2xl shadow-lg">
+        <div className="mb-4">
+          <Link
+            href="/dashboardInquilino"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-ink"
+          >
+            <ArrowLeft size={15} />
+            Voltar para Dashboard
+          </Link>
+        </div>
         <h1 className="font-display text-2xl font-bold text-center">
           Ficha Cadastral e Dados do Contrato
         </h1>

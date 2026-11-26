@@ -29,7 +29,7 @@ function ConteudoAnaliseCadastral() {
   const [erro, setErro] = useState(false);
 
   // Parecer da análise cadastral (Issue #49)
-  const [decisao, setDecisao] = useState("APROVADA");
+  const [decisao, setDecisao] = useState("");
   const [justificativa, setJustificativa] = useState("");
   const [enviandoParecer, setEnviandoParecer] = useState(false);
 
@@ -38,33 +38,33 @@ function ConteudoAnaliseCadastral() {
   const [carregandoPdf, setCarregandoPdf] = useState(false);
 
   const carregarPreviaPdf = useCallback(async () => {
-    if (!contratoId) return;
-    const token = sessionStorage.getItem("token");
-    if (!token) return;
+  if (!contratoId) return;
+  const token = sessionStorage.getItem("token");
+  if (!token) return;
 
-    setCarregandoPdf(true);
-    try {
-      const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/pdf`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  setCarregandoPdf(true);
+  try {
+    const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/pdf`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!resposta.ok) return;
+    if (!resposta.ok) return;
 
-      const blob = await resposta.blob();
-      const novaUrl = URL.createObjectURL(blob);
+    const blob = await resposta.blob();
+    const novaUrl = URL.createObjectURL(blob);
 
-      setPdfUrl((urlAnterior) => {
-        if (urlAnterior) URL.revokeObjectURL(urlAnterior);
-        return novaUrl;
-      });
-    } catch (err) {
-      console.error("Erro ao carregar prévia do PDF:", err);
-    } finally {
-      setCarregandoPdf(false);
-    }
-  }, [contratoId, apiUrl]);
+    setPdfUrl((urlAnterior) => {
+      if (urlAnterior) URL.revokeObjectURL(urlAnterior);
+      return novaUrl;
+    });
+  } catch (err) {
+    console.error("Erro ao carregar prévia do PDF:", err);
+  } finally {
+    setCarregandoPdf(false);
+  }
+}, [contratoId, apiUrl]);
 
   useEffect(() => {
     async function buscarContrato() {
@@ -90,7 +90,7 @@ function ConteudoAnaliseCadastral() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         const dados = await resposta.json();
@@ -138,39 +138,111 @@ function ConteudoAnaliseCadastral() {
   }
 
   async function abrirDocumento(nomeArquivo) {
-    try {
-      const token = sessionStorage.getItem("token");
-      const resposta = await fetch(
-        `${apiUrl}/contratos/${contratoId}/documentos/${encodeURIComponent(
-          nomeArquivo
-        )}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+  try {
+    const token = sessionStorage.getItem("token");
+    const resposta = await fetch(
+      `${apiUrl}/contratos/${contratoId}/documentos/${encodeURIComponent(
+        nomeArquivo,
+      )}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
 
-      if (!resposta.ok) {
-        setErro(true);
-        setMensagem("Não foi possível abrir o documento.");
-        return;
-      }
-
-      const blob = await resposta.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch {
+    if (!resposta.ok) {
       setErro(true);
-      setMensagem("Erro ao carregar documento.");
+      setMensagem("Não foi possível abrir o documento.");
+      return;
     }
+
+    const contentType = resposta.headers.get("content-type") || "";
+    const extensao = contentType.includes("png")
+      ? ".png"
+      : contentType.includes("jpeg") || contentType.includes("jpg")
+        ? ".jpg"
+        : ".pdf";
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `documento-inquilino${extensao}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    setErro(true);
+    setMensagem("Erro ao carregar documento.");
   }
+}
 
   async function enviarAnaliseCadastral() {
     if (enviandoParecer) return;
+
+    if (!decisao) {
+      setErro(true);
+      setMensagem("Selecione se deseja Aprovar ou Recusar o cadastro.");
+      return;
+    }
 
     if (!justificativa.trim()) {
       setErro(true);
       setMensagem("Registre a justificativa da decisão antes de confirmar.");
       return;
+    }
+
+    // Ao APROVAR, exige que todos os dados obrigatórios estejam preenchidos
+    if (decisao === "APROVADA") {
+      const pendencias = [];
+
+      if (
+        !contrato?.locatario?.rg ||
+        !contrato?.locatario?.nacionalidade ||
+        !contrato?.locatario?.estado_civil ||
+        !contrato?.locatario?.profissao
+      ) {
+        pendencias.push("qualificação civil completa do inquilino");
+      }
+
+      if (
+        !contrato?.ocupacao_locatario ||
+        Number(contrato?.renda_mensal_locatario || 0) <= 0
+      ) {
+        pendencias.push("renda mensal e ocupação declarada");
+      }
+
+      if (
+        !Array.isArray(contrato?.documentos_locatario) ||
+        contrato.documentos_locatario.length < 3
+      ) {
+        pendencias.push("todos os 3 documentos comprobatórios do inquilino");
+      }
+
+      if (
+        contrato?.garantia === "fiador" &&
+        (!contrato?.fiador_nome ||
+          !contrato?.fiador_cpf ||
+          !contrato?.fiador_qualificacao ||
+          !contrato?.fiador_imovel)
+      ) {
+        pendencias.push("dados completos do fiador");
+      }
+
+      if (
+        contrato?.garantia === "seguro" &&
+        (!contrato?.seguro_seguradora || !contrato?.seguro_apolice)
+      ) {
+        pendencias.push("dados da seguradora e apólice");
+      }
+
+      if (pendencias.length > 0) {
+        setErro(true);
+        setMensagem(
+          `Não é possível aprovar com dados pendentes: ${pendencias.join(", ")}.`,
+        );
+        return;
+      }
     }
 
     const textoConfirmacao =
@@ -198,7 +270,7 @@ function ConteudoAnaliseCadastral() {
             decisao,
             justificativa: justificativa.trim(),
           }),
-        }
+        },
       );
 
       const dados = await resposta.json();
@@ -383,7 +455,7 @@ function ConteudoAnaliseCadastral() {
                 )}
               </section>
 
-              {/* 2. Renda, Ocupação e Documentos Enviados */}
+              {/* Renda, Ocupação e Documentos Enviados */}
               <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
                 <h2 className="text-lg font-bold border-b border-slate-200 pb-1 flex items-center gap-2">
                   <Briefcase size={18} className="text-teal" />
@@ -524,8 +596,9 @@ function ConteudoAnaliseCadastral() {
                   {contrato.imovel?.estado}
                 </p>
                 <p>
-                  <strong>Vigência:</strong> {formatarData(contrato.data_inicio)}{" "}
-                  até {formatarData(contrato.data_fim)}
+                  <strong>Vigência:</strong>{" "}
+                  {formatarData(contrato.data_inicio)} até{" "}
+                  {formatarData(contrato.data_fim)}
                 </p>
                 <p>
                   <strong>Vencimento:</strong> Todo dia{" "}
@@ -544,7 +617,7 @@ function ConteudoAnaliseCadastral() {
               </section>
             </div>
 
-            {/* 4. Parecer da Análise Cadastral (Aprovar ou Recusar com Justificativa) */}
+            {/* Parecer da Análise Cadastral (Aprovar ou Recusar com Justificativa) */}
             <section className="rounded-xl border-2 border-slate-300 bg-slate-50 p-5 space-y-4">
               <h2 className="text-lg font-bold">
                 Parecer da Análise Cadastral
@@ -595,24 +668,26 @@ function ConteudoAnaliseCadastral() {
                           : "Ex: Renda comprovada insuficiente ou documentação divergente."
                       }
                     />
+                    <button
+                      type="button"
+                      onClick={enviarAnaliseCadastral}
+                      disabled={enviandoParecer || !decisao}
+                      className={`w-full text-white font-bold rounded-lg p-3.5 disabled:opacity-50 ${
+                        decisao === "RECUSADA"
+                          ? "bg-red-600 hover:opacity-90"
+                          : "bg-teal hover:opacity-90"
+                      }`}
+                    >
+                      {enviandoParecer
+                        ? "Registrando decisão..."
+                        : !decisao
+                          ? "Selecione Aprovar ou Recusar acima"
+                          : decisao === "APROVADA"
+                            ? "Confirmar Aprovação e Liberar PDF"
+                            : "Confirmar Recusa do Cadastro"}
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={enviarAnaliseCadastral}
-                    disabled={enviandoParecer}
-                    className={`w-full text-white font-bold rounded-lg p-3.5 disabled:opacity-50 ${
-                      decisao === "APROVADA"
-                        ? "bg-teal hover:opacity-90"
-                        : "bg-red-600 hover:opacity-90"
-                    }`}
-                  >
-                    {enviandoParecer
-                      ? "Registrando decisão..."
-                      : decisao === "APROVADA"
-                      ? "Confirmar Aprovação e Liberar PDF"
-                      : "Confirmar Recusa do Cadastro"}
-                  </button>
+                  
                 </>
               ) : (
                 <div className="space-y-1.5">

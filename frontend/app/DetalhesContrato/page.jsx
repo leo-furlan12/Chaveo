@@ -195,30 +195,30 @@ function ConteudoDetalhesContrato() {
   }
 
   async function baixarPDF() {
-    try {
-      const token = sessionStorage.getItem("token");
-      const resposta = await fetch(`${apiUrl}/contratos/${contrato.id}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  try {
+    const token = sessionStorage.getItem("token");
+    const resposta = await fetch(`${apiUrl}/contratos/${contrato.id}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      if (!resposta.ok) {
-        setErro("Erro ao gerar o PDF do contrato.");
-        return;
-      }
-
-      const arquivo = await resposta.blob();
-      const url = URL.createObjectURL(arquivo);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `contrato-${contrato.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      setErro("Não foi possível baixar o PDF.");
+    if (!resposta.ok) {
+      setErro("Erro ao gerar o PDF do contrato.");
+      return;
     }
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contrato-${contrato.id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    setErro("Não foi possível baixar o PDF.");
   }
+}
 
   function formatarValor(valor) {
     return Number(valor || 0).toLocaleString("pt-BR", {
@@ -365,6 +365,15 @@ const [seguradora, setSeguradora] = useState("");
       setSalvandoSeguro(false);
     }
   }
+
+  function formatarCPF(valor) {
+  const digitos = String(valor || "").replace(/\D/g, "").slice(0, 11);
+  return digitos
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft p-6 text-slate-darker">
       <div className="max-w-3xl mx-auto bg-paper rounded-xl p-7 shadow-lg">
@@ -496,7 +505,7 @@ const [seguradora, setSeguradora] = useState("");
                 <div className="pt-2 border-t border-slate-200">
                   <p className="text-sm mb-3">
                     O contrato está em rascunho. Gere o link de convite para
-                    enviar ao inquilino (CPF: {contrato.cpf_locatario}).
+                    enviar ao inquilino (CPF:{formatarCPF(contrato.cpf_locatario)}).
                   </p>
                   <button
                     type="button"
@@ -514,7 +523,7 @@ const [seguradora, setSeguradora] = useState("");
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">
                       Link de convite para o inquilino (CPF:{" "}
-                      {contrato.cpf_locatario}):
+                      {formatarCPF(contrato.cpf_locatario)}):
                     </p>
                     {imovelId && (
                       <Link
@@ -751,7 +760,7 @@ const [seguradora, setSeguradora] = useState("");
                 ) : (
                   <p className="text-slate-600">
                     Convite enviado para o CPF{" "}
-                    <strong>{contrato.cpf_locatario}</strong> (aguardando
+                    <strong>{(contrato.cpf_locatario)}</strong> (aguardando
                     aceite).
                   </p>
                 )}
