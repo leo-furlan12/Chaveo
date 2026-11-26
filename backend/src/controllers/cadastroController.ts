@@ -126,6 +126,7 @@ async cadastrar(@Body() body: any) {
           ...(dados_recebimento === undefined
             ? {}
             : this.dadosRecebimentoService.prepararDados(dados_recebimento)),
+          ativo: true,
         });
 
         usuarioSalvo = await manager.save(novoUsuario);

@@ -227,6 +227,17 @@ export class AsaasWebhookService implements OnModuleInit, OnModuleDestroy {
                   evento."dados_transferencia", evento."tentativas"
       )
       SELECT * FROM "evento_reivindicado"
+      /*
+      UPDATE "asaas_webhook_eventos" AS evento
+      SET "status_processamento" = 'PROCESSANDO',
+          "tentativas" = evento."tentativas" + 1,
+          "atualizado_em" = CURRENT_TIMESTAMP
+      FROM "proximo_evento"
+      WHERE evento."id" = "proximo_evento"."id"
+      RETURNING evento."id", evento."tipo", evento."asaas_payment_id",
+                evento."dados_pagamento", evento."asaas_transfer_id",
+                evento."dados_transferencia", evento."tentativas"
+      */
     `)) as EventoFilaAsaas[];
 
     return eventos[0] || null;

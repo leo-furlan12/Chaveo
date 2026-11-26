@@ -2,6 +2,9 @@ import { BadGatewayException, ConflictException, Injectable, Logger, NotFoundExc
 import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 import { ErroRequisicaoAsaas, consultarTransferenciaAsaas, criarTransferenciaAsaas } from '../lib/asaas';
+import { Injectable, Logger } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { ErroRequisicaoAsaas, criarTransferenciaAsaas } from '../lib/asaas';
 import { Fatura } from '../database/entities/fatura.entity';
 import { Repasse } from '../database/entities/repasse.entity';
 import { Usuario } from '../database/entities/usuario.entity';
@@ -84,9 +87,13 @@ export class AsaasRepasseService {
 
     return { mensagem: 'Nova tentativa de repasse agendada.' };
   }
-
   // Cria no máximo um repasse por fatura e só o solicita após a confirmação do pagamento.
   async iniciarRepasseDaFatura(faturaId: string): Promise<void> {
+    const destino = await this.buscarDestinoDoProprietario(faturaId);
+    if (!destino) {
+      throw new Error(`Configure os dados de recebimento do proprietário da fatura ${faturaId}.`);
+    }
+
     const referenciaExterna = `repasse-fatura-${faturaId}`;
     const repasse = await this.dataSource.transaction(async (gerenciador) => {
       const repositorioFatura = gerenciador.getRepository(Fatura);

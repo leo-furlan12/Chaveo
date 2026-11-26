@@ -38,15 +38,13 @@ function ConteudoCadastroContrato() {
   const [carregando, setCarregando] = useState(false);
   const [verificandoExistente, setVerificandoExistente] = useState(true);
 
-  const [contratoId, setContratoId] = useState(
-    searchParams.get("contratoId")
-  );
+  const [contratoId, setContratoId] = useState(searchParams.get("contratoId"));
   const [conviteToken, setConviteToken] = useState("");
   const [statusContrato, setStatusContrato] = useState("");
   const [gerandoConvite, setGerandoConvite] = useState(false);
   const [imovel, setImovel] = useState(null);
 
-//busca os dados do imóvel e verifica se já existe contrato cadastrado para ele
+  //busca os dados do imóvel e verifica se já existe contrato cadastrado para ele
   useEffect(() => {
     if (!imovelId && !contratoId) {
       setVerificandoExistente(false);
@@ -70,7 +68,7 @@ function ConteudoCadastroContrato() {
               `${apiUrl}/contratos/imovel/${imovelId}`,
               {
                 headers: { Authorization: `Bearer ${token}` },
-              }
+              },
             );
 
             if (respContrato.ok) {
@@ -88,7 +86,7 @@ function ConteudoCadastroContrato() {
               if (
                 modoEdicao &&
                 ["RASCUNHO", "AGUARDANDO_INQUILINO"].includes(
-                  contratoExistente.status
+                  contratoExistente.status,
                 )
               ) {
                 setContratoId(String(contratoExistente.id));
@@ -104,14 +102,16 @@ function ConteudoCadastroContrato() {
                 setDataInicio(
                   contratoExistente.data_inicio
                     ? String(contratoExistente.data_inicio).slice(0, 10)
-                    : ""
+                    : "",
                 );
                 setDataFim(
                   contratoExistente.data_fim
                     ? String(contratoExistente.data_fim).slice(0, 10)
-                    : ""
+                    : "",
                 );
-                setDiaVencimento(String(contratoExistente.dia_vencimento || ""));
+                setDiaVencimento(
+                  String(contratoExistente.dia_vencimento || ""),
+                );
                 return;
               }
 
@@ -130,6 +130,16 @@ function ConteudoCadastroContrato() {
 
     inicializarTela();
   }, [imovelId, apiUrl, modoEdicao, modoNovo]);
+  
+ function formatarCPF(valor) {
+      const digitos = String(valor || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
+      return digitos
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    }
 
   function alterarDespesa(despesa) {
     if (despesas.includes(despesa)) {
@@ -144,6 +154,19 @@ function ConteudoCadastroContrato() {
       alert("Nenhum imóvel foi selecionado.");
       return false;
     }
+try {
+      const token = sessionStorage.getItem("token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const cpfProprietario = String(payload?.cpf || "").replace(/\D/g, "");
+        if (cpfProprietario && cpfInquilino === cpfProprietario) {
+          alert("Você não pode cadastrar um contrato com o seu próprio CPF.");
+          setEtapa(2);
+          return false;
+        }
+      }
+    } catch {}
+
     if (!["IPCA", "IGP-M", "INCC"].includes(indiceReajuste)) {
       alert("Selecione um índice de reajuste.");
       setEtapa(1);
@@ -176,7 +199,7 @@ function ConteudoCadastroContrato() {
         Number(valorCaucao) > Number(valorAluguel) * 3
       ) {
         alert(
-          "A caução deve ser maior que zero e não ultrapassar três aluguéis."
+          "A caução deve ser maior que zero e não ultrapassar três aluguéis.",
         );
         setEtapa(3);
         return false;
@@ -216,33 +239,33 @@ function ConteudoCadastroContrato() {
       }
 
       const urlRequisicao =
-   modoEdicao && contratoId
-     ? `${apiUrl}/contratos/${contratoId}`
-     : `${apiUrl}/contratos`;
+        modoEdicao && contratoId
+          ? `${apiUrl}/contratos/${contratoId}`
+          : `${apiUrl}/contratos`;
 
- const resposta = await fetch(urlRequisicao, {
-   method: modoEdicao && contratoId ? "PATCH" : "POST",
-   headers: {
-     "Content-Type": "application/json",
-     Authorization: `Bearer ${token}`,
-   },
-   body: JSON.stringify({
-     imovel_id: imovelId,
-     cpf_locatario: cpfInquilino,
-     valor_aluguel: Number(valorAluguel),
-     data_inicio: dataInicio,
-     data_fim: dataFim,
-     dia_vencimento: Number(diaVencimento),
-     indice_reajuste: indiceReajuste,
-     despesas_inclusas: despesas,
-     garantia: garantia,
-     tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
-     valor_caucao:
-       garantia === "caucao" && tipoCaucao === "negociado"
-         ? Number(valorCaucao)
-         : null,
-   }),
- });
+      const resposta = await fetch(urlRequisicao, {
+        method: modoEdicao && contratoId ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          imovel_id: imovelId,
+          cpf_locatario: cpfInquilino,
+          valor_aluguel: Number(valorAluguel),
+          data_inicio: dataInicio,
+          data_fim: dataFim,
+          dia_vencimento: Number(diaVencimento),
+          indice_reajuste: indiceReajuste,
+          despesas_inclusas: despesas,
+          garantia: garantia,
+          tipo_caucao: garantia === "caucao" ? tipoCaucao : null,
+          valor_caucao:
+            garantia === "caucao" && tipoCaucao === "negociado"
+              ? Number(valorCaucao)
+              : null,
+        }),
+      });
 
       const dados = await resposta.json();
       if (!resposta.ok) {
@@ -250,14 +273,14 @@ function ConteudoCadastroContrato() {
         setMensagem(
           Array.isArray(dados.message)
             ? dados.message.join(", ")
-            : dados.message || "Erro ao cadastrar contrato."
+            : dados.message || "Erro ao cadastrar contrato.",
         );
         return;
       }
       if (modoEdicao && contratoId) {
-   router.push(`/DetalhesContrato?imovelId=${imovelId}`);
-   return;
- }
+        router.push(`/DetalhesContrato?imovelId=${imovelId}`);
+        return;
+      }
 
       const novoId = String(dados.contrato.id);
       setContratoId(novoId);
@@ -266,7 +289,7 @@ function ConteudoCadastroContrato() {
 
       // Mantém imovelId e contratoId na URL caso dê F5
       router.replace(
-        `/CadastroContrato?imovelId=${imovelId}&contratoId=${novoId}`
+        `/CadastroContrato?imovelId=${imovelId}&contratoId=${novoId}`,
       );
 
       await gerarConvite(novoId);
@@ -279,7 +302,8 @@ function ConteudoCadastroContrato() {
   }
 
   async function gerarConvite(id) {
-    const idAlvo = typeof id === "string" || typeof id === "number" ? id : contratoId;
+    const idAlvo =
+      typeof id === "string" || typeof id === "number" ? id : contratoId;
     if (!idAlvo) return;
 
     setGerandoConvite(true);
@@ -342,11 +366,14 @@ function ConteudoCadastroContrato() {
         const token = sessionStorage.getItem("token");
         if (!token) return;
 
-        const resposta = await fetch(`${apiUrl}/contratos/${contratoId}/dados`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const resposta = await fetch(
+          `${apiUrl}/contratos/${contratoId}/dados`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        });
+        );
 
         if (!resposta.ok) return;
 
@@ -383,7 +410,8 @@ function ConteudoCadastroContrato() {
     const contratoAprovado =
       statusContrato === "AGUARDANDO_ASSINATURAS" ||
       statusContrato === "CONCLUIDO";
-
+  
+   
     return (
       <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft flex justify-center items-center p-6">
         <div className="bg-paper text-slate-darker rounded-xl p-7 w-full max-w-lg">
@@ -395,8 +423,8 @@ function ConteudoCadastroContrato() {
             {statusContrato === "AGUARDANDO_REVISAO"
               ? "O inquilino concluiu o preenchimento. Revise o contrato para aprovar."
               : contratoAprovado
-              ? "Este contrato já foi revisado e aprovado."
-              : "O cadastro do proprietário foi concluído. Agora estamos aguardando o inquilino."}
+                ? "Este contrato já foi revisado e aprovado."
+                : "O cadastro do proprietário foi concluído. Agora estamos aguardando o inquilino."}
           </p>
 
           <h2 className="font-bold mt-8 mb-3">Progresso do contrato</h2>
@@ -424,8 +452,8 @@ function ConteudoCadastroContrato() {
               {inquilinoConcluiu
                 ? "✓ Inquilino concluiu"
                 : statusContrato === "PENDENTE_DADOS"
-                ? "Inquilino preenchendo"
-                : "Aguardando inquilino"}
+                  ? "Inquilino preenchendo"
+                  : "Aguardando inquilino"}
             </p>
 
             <p className={contratoAprovado ? "font-bold text-teal" : ""}>
@@ -516,6 +544,21 @@ function ConteudoCadastroContrato() {
       <section className="flex justify-center content-center">
         <div className="w-100 bg-paper p-7 br-2 rounded-xl">
           {/* informações do imóvel selecionado */}
+          <div className="mb-4">
+            <Link
+              href={
+                modoEdicao && imovelId
+                  ? `/DetalhesContrato?imovelId=${imovelId}`
+                  : "/dashboard"
+              }
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-ink"
+            >
+              <ArrowLeft size={16} />
+              {modoEdicao
+                ? "Voltar para Detalhes do Contrato"
+                : "Voltar para Dashboard"}
+            </Link>
+          </div>
           <div className="mb-6 rounded-lg border border-slate-300 bg-slate-50 p-4">
             <h2 className="font-display font-bold text-lg mb-3">
               Imóvel selecionado
@@ -638,10 +681,13 @@ function ConteudoCadastroContrato() {
                 <h1 className={titulo}>CPF do inquilino:</h1>
                 <input
                   type="text"
-                  maxLength={11}
-                  value={cpfInquilino}
+                  maxLength={14}
+                  placeholder="000.000.000-00"
+                  value={formatarCPF(cpfInquilino)}
                   onChange={(e) =>
-                    setCpfInquilino(e.target.value.replace(/\D/g, ""))
+                    setCpfInquilino(
+                      e.target.value.replace(/\D/g, "").slice(0, 11),
+                    )
                   }
                   className="bg-slate/10 p-3 rounded-lg w-full h-10"
                 />
@@ -765,12 +811,12 @@ function ConteudoCadastroContrato() {
               ) : (
                 <Button
                   texto={
-                  carregando
-                    ? "Salvando..."
-                    : modoEdicao
-                    ? "Salvar alterações"
-                    : "Cadastrar contrato"
-                }
+                    carregando
+                      ? "Salvando..."
+                      : modoEdicao
+                        ? "Salvar alterações"
+                        : "Cadastrar contrato"
+                  }
                   onClick={cadastrarContrato}
                   disabled={carregando}
                 />

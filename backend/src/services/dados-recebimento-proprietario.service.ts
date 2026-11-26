@@ -86,6 +86,7 @@ export class DadosRecebimentoProprietarioService {
     );
 
     return usuario;
+    //return this.formatarResposta(await this.usuarioRepository.save(usuario));
   }
 
   private async buscarProprietario(usuarioId: string): Promise<Usuario> {

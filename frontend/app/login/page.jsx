@@ -29,7 +29,6 @@ function ConteudoLogin() {
     setErro(false);
     setCarregando(true);
 
-   
     try {
       const resposta = await fetch("http://localhost:4000/api/auth/login", {
         method: "POST",
@@ -70,6 +69,28 @@ function ConteudoLogin() {
       if (areasDisponiveis.length > 1) {
         setAreas(areasDisponiveis);
         return;
+      let payloadToken = {};
+      try {
+        if (tokenRecebido) {
+          payloadToken = JSON.parse(atob(tokenRecebido.split(".")[1]));
+        }
+      } catch {}
+
+      const origemPerfis =
+        dados?.perfis || dados?.usuario?.perfis || payloadToken?.perfis || [];
+
+      const perfis = Array.isArray(origemPerfis)
+        ? origemPerfis.map((p) => String(p).toUpperCase())
+        : [String(origemPerfis).toUpperCase()];
+
+      if (redirect && redirect.startsWith("/")) {
+        router.replace(redirect);
+      } else if (perfis.includes("INQUILINO")) {
+        router.replace("/dashboardInquilino");
+      } else if (perfis.includes("PROPRIETARIO")) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/dashboardteste");
       }
 
       router.replace(destinoSolicitado || areasDisponiveis[0]?.href || "/dashboardteste");
@@ -105,6 +126,15 @@ function ConteudoLogin() {
     );
   }
 
+  function formatarCPF(valor) {
+    const digitos = String(valor || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
+    return digitos
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
   return (
     <main className="min-h-screen bg-linear-to-b from-ink from-60% to-ink-soft text-paper flex flex-col">
       <Link
@@ -133,11 +163,14 @@ function ConteudoLogin() {
             <div>CPF:</div>
             <div className="col-span-2 row-start-2">
               <input
-                value={cpf}
-                onChange={(event) => setCpf(event.target.value)}
+                value={formatarCPF(cpf)}
+                onChange={(event) =>
+                  setCpf(event.target.value.replace(/\D/g, "").slice(0, 11))
+                }
                 type="text"
+                maxLength={14}
                 className="bg-slate/10 p-3 rounded-lg w-full h-10"
-                placeholder="Insira seu CPF"
+                placeholder="000.000.000-00"
               />
             </div>
 
@@ -152,13 +185,7 @@ function ConteudoLogin() {
               />
             </div>
 
-            <div className="row-start-5 text-teal">
-              <Checkbox texto="Lembrar Dados?" />
-            </div>
-
-            <div className="row-start-5 text-teal content-center text-right">
-              Esqueci Senha
-            </div>
+           
 
             <div className="col-span-2 text-center">
               <Button
