@@ -30,6 +30,24 @@ export interface PixAsaasResposta {
   expirationDate?: string | null;
 }
 
+export interface TransferenciaAsaasResposta {
+  id: string;
+  status?: string;
+  externalReference?: string;
+  value?: number;
+  failReason?: string | null;
+}
+
+export class ErroRequisicaoAsaas extends Error {
+  constructor(
+    mensagem: string,
+    readonly statusHttp: number,
+  ) {
+    super(mensagem);
+    this.name = 'ErroRequisicaoAsaas';
+  }
+}
+
 const URL_BASE_ASAAS = 'https://api-sandbox.asaas.com/v3';
 const USER_AGENT_ASAAS = 'GestaoAluguelNext/1.0.0';
 
@@ -65,12 +83,65 @@ async function requisitarAsaas<T>(
           .join('; ')
       : '';
 
-    throw new Error(
+    throw new ErroRequisicaoAsaas(
       descricoes || `O Asaas respondeu com HTTP ${resposta.status}.`,
+      resposta.status,
     );
   }
 
   return corpo as T;
+}
+
+// Envia um repasse do saldo disponível da conta Asaas para uma chave Pix ou conta bancária.
+export function criarTransferenciaAsaas(dados: {
+  valor: number;
+  referenciaExterna: string;
+  destino:
+    | { tipo: 'PIX'; chave: string; tipoChave: string }
+    | {
+        tipo: 'CONTA_BANCARIA';
+        codigoBanco: string;
+        titularNome: string;
+        titularDocumento: string;
+        agencia: string;
+        digitoAgencia?: string;
+        conta: string;
+        digitoConta: string;
+        tipoConta: string;
+        operacao: 'PIX' | 'TED';
+      };
+}): Promise<TransferenciaAsaasResposta> {
+  const base = {
+    value: dados.valor,
+    externalReference: dados.referenciaExterna,
+    description: `Repasse de aluguel - ${dados.referenciaExterna}`,
+  };
+
+  if (dados.destino.tipo === 'PIX') {
+    return requisitarAsaas<TransferenciaAsaasResposta>('/transfers', 'POST', {
+      ...base,
+      operationType: 'PIX',
+      pixAddressKey: dados.destino.chave,
+      pixAddressKeyType: dados.destino.tipoChave,
+    });
+  }
+
+  return requisitarAsaas<TransferenciaAsaasResposta>('/transfers', 'POST', {
+    ...base,
+    operationType: dados.destino.operacao,
+    bankAccount: {
+      bank: { code: dados.destino.codigoBanco },
+      ownerName: dados.destino.titularNome,
+      cpfCnpj: dados.destino.titularDocumento,
+      agency: dados.destino.agencia,
+      ...(dados.destino.digitoAgencia
+        ? { agencyDigit: dados.destino.digitoAgencia }
+        : {}),
+      account: dados.destino.conta,
+      accountDigit: dados.destino.digitoConta,
+      bankAccountType: dados.destino.tipoConta,
+    },
+  });
 }
 
 // Cadastra o inquilino como cliente pagador no Asaas.

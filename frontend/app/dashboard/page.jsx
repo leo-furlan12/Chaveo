@@ -200,6 +200,11 @@ export default function DashboardProprietario() {
               <Wallet size={18} />
               <span>Controle de Pagamentos</span>
             </button>
+
+            <Link href="/dashboard/dados-recebimento" className="nav-item">
+              <Wallet size={18} />
+              <span>Dados bancários</span>
+            </Link>
           </nav>
         </div>
 
